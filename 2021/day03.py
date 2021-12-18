@@ -90,35 +90,36 @@ def get_life_support_rating(report: List[str]) -> int:
     return get_oxygen_generator_rating(report) * get_co2_scrubber_rating(report)
 
 
-##### TESTS
-assert bin2dec('101') == 5
-assert bin2dec('10110') == 22
+if __name__ == '__main__':
+    ##### TESTS
+    assert bin2dec('101') == 5
+    assert bin2dec('10110') == 22
 
-test_report = '''00100
-11110
-10110
-10111
-10101
-01111
-00111
-11100
-10000
-11001
-00010
-01010'''.split('\n')
+    test_report = '''00100
+    11110
+    10110
+    10111
+    10101
+    01111
+    00111
+    11100
+    10000
+    11001
+    00010
+    01010'''.split('\n')
 
-assert calculate_rate(test_report, 'gamma') == 22
-assert calculate_rate(test_report, 'epsilon') == 9
+    assert calculate_rate(test_report, 'gamma') == 22
+    assert calculate_rate(test_report, 'epsilon') == 9
 
-print(get_oxygen_generator_rating(test_report))
-print(get_co2_scrubber_rating(test_report))
-assert get_oxygen_generator_rating(test_report) == 23
-assert get_co2_scrubber_rating(test_report) == 10
+    print(get_oxygen_generator_rating(test_report))
+    print(get_co2_scrubber_rating(test_report))
+    assert get_oxygen_generator_rating(test_report) == 23
+    assert get_co2_scrubber_rating(test_report) == 10
 
-##### THE REAL THING
-report = read_input_lines(3)
+    ##### THE REAL THING
+    report = read_input_lines(3)
 
-power_consumption = get_power_consumption(report)
-print(f'Part 1: {power_consumption}')
-life_support_rating = get_life_support_rating(report)
-print(f'Part 2: {life_support_rating}')
+    power_consumption = get_power_consumption(report)
+    print(f'Part 1: {power_consumption}')
+    life_support_rating = get_life_support_rating(report)
+    print(f'Part 2: {life_support_rating}')
