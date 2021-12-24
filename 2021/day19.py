@@ -34,7 +34,8 @@ def make_rotations():
 class Rotation:
     x: Vector 
     y: Vector
-    
+    z: Vector=None    
+
     def __post_init__(self):
         self.z = self.x.cross(self.y)
 
@@ -44,6 +45,7 @@ class Rotation:
             self.y.dot(vec),
             self.z.dot(vec)
         )
+    
 
 
 @dataclass
@@ -141,15 +143,17 @@ def register_maps(scan_maps: List[str]) -> ScannerMap:
                 for axs in ['x', 'y', 'z']:
                     max_overlap = 0
                     max_shift = None
-                    for to_shift in range(-SCAN_DIST, SCAN_DIST + 1):
+                    for to_shift in range(-2*SCAN_DIST, 2*SCAN_DIST + 1):
                         setattr(shift_vector, axs, to_shift)
                         translated_map = rotated_map.translate(shift_vector)
-                        translated_map_vals = set(
-                            [getattr(beacon, axs) for beacon in translated_map.beacons]
+                        translated_map_vals = [
+                            getattr(beacon, axs) for beacon in translated_map.beacons
+                        ]
+                        this_overlap = sum(
+                            1 for tmv in translated_map_vals if tmv in the_map_vals[axs]
                         )
-                        this_overlap = translated_map_vals.intersection(the_map_vals[axs])
-                        if len(this_overlap) > max_overlap:
-                            max_overlap = len(this_overlap)
+                        if this_overlap > max_overlap:
+                            max_overlap = (this_overlap)
                             max_shift = to_shift
                     if max_overlap < OVERLAP_MIN:
                         aint_it = True
@@ -176,19 +180,7 @@ if __name__ == '__main__':
     r = Rotation(Vector(-1, 0, 0), Vector(0, -1, 0))
     v = Vector(-1, -1, 1)
     new_v = r @ v
-
-
-    test_scan_map = ScannerMap.from_str('''--- scanner 0 ---
--1,-1,1
--2,-2,2
--3,-3,3
--2,-3,1
-5,6,-4
-8,0,7''')
-    
-    rotations = make_rotations()
-    for r in rotations:
-        temp = test_scan_map.rotate(r)
+    assert new_v == Vector(1, 1, 1)
 
     ### THE TESTS
     test_reports = '''--- scanner 0 ---
@@ -327,6 +319,64 @@ if __name__ == '__main__':
 891,-625,532
 -652,-548,-490
 30,-46,-14'''.split('\n\n')
+
+    test_scanner = ScannerMap.from_str('''--- scanner 0 ---
+-1,-1,1
+-2,-2,2
+-3,-3,3
+-2,-3,1
+5,6,-4
+8,0,7''')
+
+    other_scanner_maps = '''--- scanner 0 ---
+1,-1,1
+2,-2,2
+3,-3,3
+2,-1,3
+-5,4,-6
+-8,-7,0
+
+--- scanner 0 ---
+-1,-1,-1
+-2,-2,-2
+-3,-3,-3
+-1,-3,-2
+4,6,5
+-7,0,8
+
+--- scanner 0 ---
+1,1,-1
+2,2,-2
+3,3,-3
+1,3,-2
+-4,-6,5
+7,0,8
+
+--- scanner 0 ---
+1,1,1
+2,2,2
+3,3,3
+3,1,2
+-6,-4,-5
+0,7,-8'''.split('\n\n')
+
+    rotations = make_rotations()
+    other_orientations = [ScannerMap.from_str(sm) for sm in other_scanner_maps]
+    rotated_test_scan_maps = [test_scanner.rotate(r) for r in rotations]
+    num_found = 0
+    for oo in other_orientations:
+        for rtsm in rotated_test_scan_maps:
+            matches = sum(1 for oob, rtsmb in zip(oo.beacons, rtsm.beacons) if oob == rtsmb)
+            if matches == len(test_scanner.beacons):
+                num_found += 1
+                break
+    assert num_found == 4
+
+    t = Vector(1,1,1)
+    translated_test_scanner = test_scanner.translate(t)
+    assert translated_test_scanner.beacons[0] == Vector(0, 0, 2)
+    assert translated_test_scanner.beacons[-1] == Vector(9, 1, 8)
+
     test_full_map = register_maps(test_reports)
     assert len(test_full_map.beacons) == 79
 

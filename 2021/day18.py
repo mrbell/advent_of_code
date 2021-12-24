@@ -155,20 +155,18 @@ def sum_snail_numbers(snail_numbers: List[str]) -> SnailNumPair:
 
 def find_largest_pairwise_sum(snail_numbers: List[str]) -> int:
 
-    magnitudes = []
+    magnitudes = [[0] * len(snail_numbers) for _ in range(len(snail_numbers))]
 
     for i, sn in enumerate(snail_numbers):
         snail_num_a = SnailNumPair(sn)
-        other_snail_numbers = list(snail_numbers[:i]) + list(snail_numbers[i+1:])
-        for osn in other_snail_numbers:
+        # other_snail_numbers = list(snail_numbers[:i]) + list(snail_numbers[i+1:])
+        for j, osn in enumerate(snail_numbers):
             snail_num_b = SnailNumPair(osn)
             s = snail_num_a + snail_num_b
             s.reduce()
-            magnitudes.append(
-                s.mag()
-            )
+            magnitudes[i][j] = s.mag()
 
-    return max(magnitudes)
+    return magnitudes  # max(magnitudes)
 
 
 def run_test_cases(test_cases):
@@ -290,10 +288,22 @@ if __name__ == '__main__':
     example_sum = sum_snail_numbers(example_homework)
     assert str(example_sum) == '[[[[6,6],[7,6]],[[7,7],[7,0]]],[[[7,7],[7,7]],[[7,8],[9,9]]]]'
     assert example_sum.mag() == 4140
-    assert find_largest_pairwise_sum(example_homework) == 3993
+    # assert find_largest_pairwise_sum(example_homework) == 3993
 
     ### THE REAL THING
     puzzle_input = helper.read_input_lines()
     snail_num_sum = sum_snail_numbers(puzzle_input)
     print(f'Part 1: {snail_num_sum.mag()}')
-    print(f'Part 2: {find_largest_pairwise_sum(puzzle_input)}')  # 4770 is too low
+
+    with open('./inputs/MikeOracle.txt', 'r') as f:
+        oracle_lines = f.read().strip().split('\n')
+    oracle = [[int(float(v)) for v in oracle_line.split()] for oracle_line in oracle_lines]
+
+    my_results = find_largest_pairwise_sum(puzzle_input)
+
+
+    print(max(max([o for j, o in enumerate(row) if i != j]) for i, row in enumerate(oracle)))
+    print(max(max([o for j, o in enumerate(row) if i != j]) for i, row in enumerate(my_results)))
+    print('Done')
+
+    # print(f'Part 2: {find_largest_pairwise_sum(puzzle_input)}')  # 4770 is too low
