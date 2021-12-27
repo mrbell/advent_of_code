@@ -1,7 +1,7 @@
 from __future__ import annotations
 from time import time
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import helper
 
 
@@ -43,6 +43,9 @@ class Map:
         d_room = [diagram_rows[3][9]] + folded_d + [diagram_rows[2][9]]
 
         return Map(a_room, b_room, c_room, d_room)
+
+    def __hash__(self):
+        return hash(str(self))
 
     def __str__(self) -> str:
         unfolded = len(self.a_room) > 2
@@ -172,87 +175,118 @@ class Map:
                 return False
         return True
 
+'''
+#############
+#...B...B..D#
+###.#.#C#.###
+  #A#D#C#A#  
+  ######### 
+'''
 
-def find_cheapest_solution(
-    the_map: Map, cost_so_far: int=0, path_so_far: List[Map]=None, verbose=False
-) -> Tuple(int, List[Map]):
 
-    # Idea for optimization: turn this into a class. Store each map state and 
-    # incremental cheapest cost to solution from the state. Then I can check
-    # cached states to see if I need to actually crawl down the tree or not
-    # for each map state. My intuition is that a lot of the nodes in the tree
-    # are redundant (there are many more paths through configuration space
-    # than configurations).
+class Solver():
 
-    if path_so_far is None:
-        path_so_far = []
-        if verbose:
-            print(the_map)
-    solutions = []
+    def __init__(self):
+        self.map_state_solution_costs: Dict[Map, int] = {}
 
-    elig_to_move = the_map.eligible_to_move()
-    legal_move_map = {}
+    def find_cheapest_solution(
+        self, the_map: Map, 
+        cost_so_far: int=0, path_so_far: List[Map]=None, 
+        verbose=False
+    ) -> Tuple(int, List[Map]):
 
-    found_cheapest_move = False
-    # If a amphipod is able to move to its room, that will always
-    # be the cheapest next move... we don't have to search through other 
-    # moves. So we'll loop over all amphipods that are eligible to move
-    # and see if any can move to their correct room. If so, we take that
-    # move as cheapest. If not, we'll loop over all amphipods that can 
-    # move again and find which one leads to the cheapest solution.
-    for i, mover in enumerate(elig_to_move):
-        legal_moves, direct_to_goal = the_map.legal_moves(mover)
-        # Store these so we don't have to compute again in the next loop 
-        legal_move_map[mover] = legal_moves  
-        if direct_to_goal:
-            starting_point = mover
-            ending_point = legal_moves[0]
-            incremental_cost = the_map.move_score(starting_point, ending_point)
-            updated_map = the_map.move(starting_point, ending_point)
-            if updated_map.solved():
-                solutions.append((
-                    cost_so_far + incremental_cost,
-                    path_so_far + [updated_map]
-                ))
+        if the_map in self.map_state_solution_costs:
+            if self.map_state_solution_costs[the_map][0] < 0:
+                return (-1, [])
             else:
-                cheapest_solution = find_cheapest_solution(
-                    updated_map,
-                    cost_so_far + incremental_cost,
-                    path_so_far + [updated_map]
-                )
-                if cheapest_solution[0] > 0:
-                    solutions.append(cheapest_solution)
-            found_cheapest_move = True
-            break
+                return (
+                    cost_so_far + self.map_state_solution_costs[the_map][0], 
+                    path_so_far + self.map_state_solution_costs[the_map][1]
+                ) 
 
-    if not found_cheapest_move:
+        # Idea for optimization: turn this into a class. Store each map state and 
+        # incremental cheapest cost to solution from the state. Then I can check
+        # cached states to see if I need to actually crawl down the tree or not
+        # for each map state. My intuition is that a lot of the nodes in the tree
+        # are redundant (there are many more paths through configuration space
+        # than configurations).
+
+        if path_so_far is None:
+            path_so_far = []
+            if verbose:
+                print(the_map)
+        solutions = []
+
+        elig_to_move = the_map.eligible_to_move()
+        legal_move_map = {}
+
+        found_cheapest_move = False
+        # If a amphipod is able to move to its room, that will always
+        # be the cheapest next move... we don't have to search through other 
+        # moves. So we'll loop over all amphipods that are eligible to move
+        # and see if any can move to their correct room. If so, we take that
+        # move as cheapest. If not, we'll loop over all amphipods that can 
+        # move again and find which one leads to the cheapest solution.
         for i, mover in enumerate(elig_to_move):
-            
-            legal_moves = legal_move_map[mover]
-            for j, legal_move in enumerate(legal_moves):
-                incremental_cost = the_map.move_score(mover, legal_move)
-                updated_map = the_map.move(mover, legal_move)
+            legal_moves, direct_to_goal = the_map.legal_moves(mover)
+            # Store these so we don't have to compute again in the next loop 
+            legal_move_map[mover] = legal_moves  
+            if direct_to_goal:
+                starting_point = mover
+                ending_point = legal_moves[0]
+                incremental_cost = the_map.move_score(starting_point, ending_point)
+                updated_map = the_map.move(starting_point, ending_point)
                 if updated_map.solved():
                     solutions.append((
                         cost_so_far + incremental_cost,
                         path_so_far + [updated_map]
                     ))
                 else:
-                    cheapest_solution = find_cheapest_solution(
-                        updated_map, 
+                    cheapest_solution = self.find_cheapest_solution(
+                        updated_map,
                         cost_so_far + incremental_cost,
                         path_so_far + [updated_map]
                     )
                     if cheapest_solution[0] > 0:
                         solutions.append(cheapest_solution)
-                if len(path_so_far) < 2 and verbose:
-                    print(
-                        '.' * len(path_so_far) + 
-                        f'mover {i+1}/{len(elig_to_move)}, move {j}/{len(legal_moves)}'
-                    )
+                found_cheapest_move = True
+                break
 
-    return min(solutions, key=lambda x: x[0]) if len(solutions) > 0 else (-1, [])
+        if not found_cheapest_move:
+            for i, mover in enumerate(elig_to_move):
+                
+                legal_moves = legal_move_map[mover]
+                for j, legal_move in enumerate(legal_moves):
+                    incremental_cost = the_map.move_score(mover, legal_move)
+                    updated_map = the_map.move(mover, legal_move)
+                    if updated_map.solved():
+                        solutions.append((
+                            cost_so_far + incremental_cost,
+                            path_so_far + [updated_map]
+                        ))
+                    else:
+                        cheapest_solution = self.find_cheapest_solution(
+                            updated_map, 
+                            cost_so_far + incremental_cost,
+                            path_so_far + [updated_map]
+                        )
+                        if cheapest_solution[0] > 0:
+                            solutions.append(cheapest_solution)
+                    if len(path_so_far) < 2 and verbose:
+                        print(
+                            '.' * len(path_so_far) + 
+                            f'mover {i+1}/{len(elig_to_move)}, move {j}/{len(legal_moves)}'
+                        )
 
+        lowest_cost, lowest_cost_path = min(solutions, key=lambda x: x[0]) if len(solutions) > 0 else (-1, [])
+
+        # Store the lowest incremental cost and associated path required to find the solution from the current state
+        self.map_state_solution_costs[the_map] = (
+            lowest_cost - cost_so_far if lowest_cost > 0 else -1,
+            lowest_cost_path[len(path_so_far):] if lowest_cost > 0 else []
+        )
+
+        return lowest_cost, lowest_cost_path 
 
 if __name__ == '__main__':
     ### THE TESTS
@@ -291,8 +325,9 @@ if __name__ == '__main__':
     dests = updated_test_map.legal_moves(elig_to_move[-1])
 
     t0 = time()
-    test_solutions = find_cheapest_solution(test_map)
-    print(f'Time to solve: {time() - t0}')  # Benchmark time: 1.9s 
+    solver = Solver()
+    test_solutions = solver.find_cheapest_solution(test_map)
+    print(f'Time to solve: {time() - t0:.2f} s')  # Benchmark time: 0.2 s 
     assert test_solutions[0] == 12521
 
     test_map = Map.from_diagram(test_solved_map)
@@ -302,7 +337,8 @@ if __name__ == '__main__':
     puzzle_input = helper.read_input()
     the_map = Map.from_diagram(puzzle_input)
     t0 = time()
-    the_solution = find_cheapest_solution(the_map)
-    print(f'Time to solve: {time() - t0}')  # Benchmark time: 18.6 s
+    solver = Solver()
+    the_solution = solver.find_cheapest_solution(the_map)
+    print(f'Time to solve: {time() - t0:.2f} s')  # Benchmark time: 1.0 s
     print(f'Part 1: {the_solution[0]}')
     print(f'Part 2: {""}')
