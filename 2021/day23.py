@@ -19,8 +19,6 @@ hall_positions = {
     'D': 8
 }
 
-# I think a relatively brute force approach is going to work, running through all possible 
-# combinations of movements to find the cheapest one
 
 @dataclass
 class Map: 
@@ -93,35 +91,43 @@ class Map:
         steps = 0
         whos_moving = getattr(self, starting_point[0])[starting_point[1]]
         cost_per_step = costs[whos_moving]
+        room_size = len(self.a_room)
         if 'room' in starting_point[0] and 'room' in ending_point[0]:
-            steps += (2 - starting_point[1])
+            steps += (room_size - starting_point[1])
             which_room = starting_point[0][0].upper()
             to_which_room = ending_point[0][0].upper()
             steps += abs(hall_positions[which_room] - hall_positions[to_which_room])
-            steps += (2 - ending_point[1])
+            steps += (room_size - ending_point[1])
         elif 'room' in starting_point[0]:
-            steps += (2 - starting_point[1])
+            steps += (room_size - starting_point[1])
             which_room = starting_point[0][0].upper()
             steps += abs(hall_positions[which_room] - ending_point[1])
         else:
             steps += abs(starting_point[1] - hall_positions[whos_moving])
-            steps += 2 if getattr(self, ending_point[0])[0] == '.' else 1
+            steps += (room_size - ending_point[1])
         return steps * cost_per_step
 
     def eligible_to_move(self) -> Tuple[str, int]:
         elig_to_move = []
+
         for room_id in 'abdc':
             room_name = f'{room_id}_room'
             room = getattr(self, room_name)
-            if (
-                room[1] != '.' and (room[1] != room_id.upper() or room[0] != room_id.upper())
-            ): 
-                elig_to_move.append((room_name, 1))
-            elif (
-                room[1] == '.' and room[0] != '.' and room[0] != room_id.upper()
-            ):
-                elig_to_move.append((room_name, 0))
-           
+
+            try:
+                for i in range(len(room) - 1, -1, -1):
+                    if room[i].isalpha():
+                        if room[i] != room_id.upper():
+                            elig_to_move.append((room_name, i))
+                            raise StopIteration
+                        else:
+                            for j in range(i):
+                                if room[j] != room_id.upper():
+                                    elig_to_move.append((room_name, i))
+                                    raise StopIteration
+            except StopIteration:
+                continue
+          
         for hall_id, amph in enumerate(self.hall):
             if amph.isalpha():
                 elig_to_move.append(('hall', hall_id))
@@ -160,12 +166,17 @@ class Map:
                 destination_room_position:starting_point[1]:step
             ]
         ):
-            if all(o == '.' for o in destination_room):
-                legal_moves = [(destination_room_name, 0)]
+            try:
+                # Returns the index of the first open space in the room
+                destination_room_position = destination_room.index('.')
+                for i in range(0, destination_room_position):
+                    if destination_room[i] != whos_moving: 
+                        raise ValueError
+                legal_moves = [(destination_room_name, destination_room_position)]
                 found_cheapest_move = True
-            elif destination_room[1] == '.' and destination_room[0] == whos_moving:
-                legal_moves = [(destination_room_name, 1)]
-                found_cheapest_move = True
+            except ValueError:
+                # There are no empty spaces in the room
+                pass
 
         return legal_moves, found_cheapest_move
 
@@ -174,14 +185,6 @@ class Map:
             if not all(o == room_id.upper() for o in getattr(self, f'{room_id}_room')):
                 return False
         return True
-
-'''
-#############
-#...B...B..D#
-###.#.#C#.###
-  #A#D#C#A#  
-  ######### 
-'''
 
 
 class Solver():
@@ -287,6 +290,7 @@ class Solver():
         )
 
         return lowest_cost, lowest_cost_path 
+
 
 if __name__ == '__main__':
     ### THE TESTS
