@@ -1,4 +1,5 @@
 from __future__ import annotations
+from time import time
 from dataclasses import dataclass, field
 from typing import List, Tuple
 import helper
@@ -29,35 +30,36 @@ class Map:
     d_room: List[str]
     hall: List[str] = field(default_factory=lambda: ['.'] * 11)
 
-    def from_diagram(diagram: str) -> Map:
+    def from_diagram(diagram: str, unfold: bool=False) -> Map:
         diagram_rows = diagram.strip().split('\n')
-        a_room = [
-            diagram_rows[3][3],
-            diagram_rows[2][3]
-        ]
-        b_room = [
-            diagram_rows[3][5],
-            diagram_rows[2][5]
-        ]
-        c_room = [
-            diagram_rows[3][7],
-            diagram_rows[2][7]
-        ]
-        d_room = [
-            diagram_rows[3][9],
-            diagram_rows[2][9]
-        ]
+        folded_a = ['D', 'D'] if unfold else []
+        folded_b = ['B', 'C'] if unfold else []
+        folded_c = ['A', 'B'] if unfold else []
+        folded_d = ['C', 'A'] if unfold else []
+
+        a_room = [diagram_rows[3][3]] + folded_a + [diagram_rows[2][3]]
+        b_room = [diagram_rows[3][5]] + folded_b + [diagram_rows[2][5]]
+        c_room = [diagram_rows[3][7]] + folded_c + [diagram_rows[2][7]]
+        d_room = [diagram_rows[3][9]] + folded_d + [diagram_rows[2][9]]
+
         return Map(a_room, b_room, c_room, d_room)
 
     def __str__(self) -> str:
-        return '\n'.join([
+        unfolded = len(self.a_room) > 2
+        unfolded_lines = [
+            f'###{self.a_room[2]}#{self.b_room[2]}#{self.c_room[2]}#{self.d_room[2]}###',
+            f'###{self.a_room[1]}#{self.b_room[1]}#{self.c_room[1]}#{self.d_room[1]}###'
+        ] if unfolded else []
+        lines = [
             '#' * 13,
             '#' + ''.join(self.hall) + '#',
-            f'###{self.a_room[1]}#{self.b_room[1]}#{self.c_room[1]}#{self.d_room[1]}###',
+            f'###{self.a_room[-1]}#{self.b_room[-1]}#{self.c_room[-1]}#{self.d_room[-1]}###'
+        ] + unfolded_lines + [
             f'  #{self.a_room[0]}#{self.b_room[0]}#{self.c_room[0]}#{self.d_room[0]}#  ',
             '  #########  ',
             ' ' * 13 
-        ])
+        ]
+        return '\n'.join(lines)
 
     def copy(self) -> Map:
         return Map(
@@ -171,20 +173,37 @@ class Map:
         return True
 
 
-def find_cheapest_solution(the_map: Map, cost_so_far: int=0, path_so_far: List[Map]=None) -> Tuple(int, List[Map]):
+def find_cheapest_solution(
+    the_map: Map, cost_so_far: int=0, path_so_far: List[Map]=None, verbose=False
+) -> Tuple(int, List[Map]):
+
+    # Idea for optimization: turn this into a class. Store each map state and 
+    # incremental cheapest cost to solution from the state. Then I can check
+    # cached states to see if I need to actually crawl down the tree or not
+    # for each map state. My intuition is that a lot of the nodes in the tree
+    # are redundant (there are many more paths through configuration space
+    # than configurations).
+
     if path_so_far is None:
         path_so_far = []
-        print(the_map)
+        if verbose:
+            print(the_map)
     solutions = []
 
     elig_to_move = the_map.eligible_to_move()
-
     legal_move_map = {}
 
     found_cheapest_move = False
+    # If a amphipod is able to move to its room, that will always
+    # be the cheapest next move... we don't have to search through other 
+    # moves. So we'll loop over all amphipods that are eligible to move
+    # and see if any can move to their correct room. If so, we take that
+    # move as cheapest. If not, we'll loop over all amphipods that can 
+    # move again and find which one leads to the cheapest solution.
     for i, mover in enumerate(elig_to_move):
         legal_moves, direct_to_goal = the_map.legal_moves(mover)
-        legal_move_map[mover] = legal_moves        
+        # Store these so we don't have to compute again in the next loop 
+        legal_move_map[mover] = legal_moves  
         if direct_to_goal:
             starting_point = mover
             ending_point = legal_moves[0]
@@ -204,6 +223,7 @@ def find_cheapest_solution(the_map: Map, cost_so_far: int=0, path_so_far: List[M
                 if cheapest_solution[0] > 0:
                     solutions.append(cheapest_solution)
             found_cheapest_move = True
+            break
 
     if not found_cheapest_move:
         for i, mover in enumerate(elig_to_move):
@@ -225,8 +245,12 @@ def find_cheapest_solution(the_map: Map, cost_so_far: int=0, path_so_far: List[M
                     )
                     if cheapest_solution[0] > 0:
                         solutions.append(cheapest_solution)
-                if len(path_so_far) < 2:
-                    print('.' * len(path_so_far) + f'mover {i+1}/{len(elig_to_move)}, move {j}/{len(legal_moves)}')
+                if len(path_so_far) < 2 and verbose:
+                    print(
+                        '.' * len(path_so_far) + 
+                        f'mover {i+1}/{len(elig_to_move)}, move {j}/{len(legal_moves)}'
+                    )
+
     return min(solutions, key=lambda x: x[0]) if len(solutions) > 0 else (-1, [])
 
 
@@ -253,7 +277,11 @@ if __name__ == '__main__':
     test_map = Map.from_diagram(test_starting_map2)
     assert test_map.move_score(('b_room', 0), ('d_room', 1)) == 7000
 
+    test_map_unfolded = Map.from_diagram(test_starting_map, unfold=True)
+    print(test_map_unfolded)
+
     test_map = Map.from_diagram(test_starting_map)
+    print(test_map)
     updated_test_map = test_map.move(('a_room', 1), ('hall', 0))
 
     elig_to_move = test_map.eligible_to_move()
@@ -262,7 +290,9 @@ if __name__ == '__main__':
     dests = updated_test_map.legal_moves(elig_to_move[0])
     dests = updated_test_map.legal_moves(elig_to_move[-1])
 
+    t0 = time()
     test_solutions = find_cheapest_solution(test_map)
+    print(f'Time to solve: {time() - t0}')  # Benchmark time: 1.9s 
     assert test_solutions[0] == 12521
 
     test_map = Map.from_diagram(test_solved_map)
@@ -271,6 +301,8 @@ if __name__ == '__main__':
     ### THE REAL THING
     puzzle_input = helper.read_input()
     the_map = Map.from_diagram(puzzle_input)
+    t0 = time()
     the_solution = find_cheapest_solution(the_map)
+    print(f'Time to solve: {time() - t0}')  # Benchmark time: 18.6 s
     print(f'Part 1: {the_solution[0]}')
     print(f'Part 2: {""}')
