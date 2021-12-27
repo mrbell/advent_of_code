@@ -331,8 +331,14 @@ if __name__ == '__main__':
     t0 = time()
     solver = Solver()
     test_solutions = solver.find_cheapest_solution(test_map)
-    print(f'Time to solve: {time() - t0:.2f} s')  # Benchmark time: 0.2 s 
+    print(f'Time to solve: {time() - t0:.2f} s')  # Benchmark time: 3.4 s 
     assert test_solutions[0] == 12521
+
+    t0 = time()
+    solver = Solver()
+    test_solutions_unfolded = solver.find_cheapest_solution(test_map_unfolded)
+    print(f'Time to solve: {time() - t0:.2f} s')  # Benchmark time: 
+    assert test_solutions_unfolded[0] == 44169
 
     test_map = Map.from_diagram(test_solved_map)
     assert test_map.solved()
@@ -345,4 +351,11 @@ if __name__ == '__main__':
     the_solution = solver.find_cheapest_solution(the_map)
     print(f'Time to solve: {time() - t0:.2f} s')  # Benchmark time: 1.0 s
     print(f'Part 1: {the_solution[0]}')
-    print(f'Part 2: {""}')
+
+
+    the_unfolded_map = Map.from_diagram(puzzle_input, unfold=True)
+    t0 = time()
+    solver = Solver()
+    the_unfolded_solution = solver.find_cheapest_solution(the_unfolded_map)
+    print(f'Time to solve: {time() - t0:.2f} s')  # Benchmark time: 1.0 s
+    print(f'Part 2: {the_unfolded_solution[0]}')
