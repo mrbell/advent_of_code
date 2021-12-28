@@ -199,6 +199,8 @@ class Solver():
     ) -> Tuple(int, List[Map]):
 
         if the_map in self.map_state_solution_costs:
+            # We've seen this map state before and have stored the solution
+            # relative to this state.
             if self.map_state_solution_costs[the_map][0] < 0:
                 return (-1, [])
             else:
@@ -206,13 +208,6 @@ class Solver():
                     cost_so_far + self.map_state_solution_costs[the_map][0], 
                     path_so_far + self.map_state_solution_costs[the_map][1]
                 ) 
-
-        # Idea for optimization: turn this into a class. Store each map state and 
-        # incremental cheapest cost to solution from the state. Then I can check
-        # cached states to see if I need to actually crawl down the tree or not
-        # for each map state. My intuition is that a lot of the nodes in the tree
-        # are redundant (there are many more paths through configuration space
-        # than configurations).
 
         if path_so_far is None:
             path_so_far = []

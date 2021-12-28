@@ -4,6 +4,8 @@ from typing import List, Tuple
 import helper
 
 
+### NOT YET WORKING FOR EITHER PART!
+
 SCAN_DIST = 1000
 OVERLAP_MIN = 12
 

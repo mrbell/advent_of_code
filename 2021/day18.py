@@ -4,6 +4,8 @@ from typing import Optional, List
 import helper
 
 
+### SOMETHING IS WRONG WITH PART 2 ALTHOUGH TESTS PASS
+
 EXPLODE=0
 SPLIT=1
 REDUCED=1
