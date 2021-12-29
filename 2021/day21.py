@@ -1,4 +1,6 @@
-from typing import List, Tuple
+from typing import Dict 
+from collections import defaultdict
+from itertools import product
 from random import randint
 import helper
 
@@ -50,6 +52,39 @@ class DiracDiceGame:
         return -1
 
 
+possible_rolls = [sum(vals) for vals in product(range(1,4), range(1,4), range(1,4))]
+grouped_rolls = defaultdict(lambda: 0)
+for pr in possible_rolls:
+    grouped_rolls[pr] += 1
+
+
+def dirac_game(p1_start: int, p2_start: int, p1_score: int=0, p2_score: int=0, current_player: int=0, turn: int=1) -> Dict[str, int]: 
+    results = {'p1_wins': 0, 'p2_wins': 0}
+    for i in grouped_rolls:
+        n_vals = grouped_rolls[i]
+        if current_player == 0:
+            p1_pos = (p1_start - 1 + i) % 10 + 1
+            new_p1_score = p1_score + p1_pos
+
+            if new_p1_score < 21:
+                sub_results = dirac_game(p1_pos, p2_start, new_p1_score, p2_score, 1, turn + 1)
+                results['p1_wins'] += n_vals * sub_results['p1_wins']
+                results['p2_wins'] += n_vals * sub_results['p2_wins']
+            else:
+                results['p1_wins'] += n_vals
+        else:
+            p2_pos = (p2_start - 1 + i) % 10 + 1
+            new_p2_score = p2_score + p2_pos
+
+            if new_p2_score < 21:
+                sub_results = dirac_game(p1_start, p2_pos, p1_score, new_p2_score, 0, turn + 1)
+                results['p1_wins'] += n_vals * sub_results['p1_wins']
+                results['p2_wins'] += n_vals * sub_results['p2_wins']
+            else:
+                results['p2_wins'] += n_vals
+    return results
+
+
 if __name__ == '__main__':
     ### THE TESTS
     test_p1_start = 4
@@ -59,6 +94,9 @@ if __name__ == '__main__':
         test_game.take_turn()
     assert min(test_game.scores) * test_game.die_rolls == 739785
 
+    test_results = dirac_game(test_p1_start, test_p2_start)
+    assert max(test_results.values()) == 444356092776315
+
     ### THE REAL THING
     puzzle_input = helper.read_input_lines()
     p1_start = int(puzzle_input[0][-1])
@@ -67,4 +105,5 @@ if __name__ == '__main__':
     while game.winner() < 0:
         game.take_turn()
     print(f'Part 1: {min(game.scores) * game.die_rolls}')
-    print(f'Part 2: {""}')
+    results = dirac_game(p1_start, p2_start)
+    print(f'Part 2: {max(results.values())}')
