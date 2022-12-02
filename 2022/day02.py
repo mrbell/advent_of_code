@@ -17,6 +17,12 @@ opp_key = {
     'C': 'scissors'
 }
 
+outcome_key = {
+    'X': 'loss',
+    'Y': 'draw',
+    'Z': 'win'
+}
+
 my_key = {
     'X': 'rock',
     'Y': 'paper',
@@ -46,11 +52,11 @@ def decrypt_guide(encrypted_guide: List[str]) -> List[Tuple[str, str]]:
         opp_shape, desired_outcome = round.split()
         opp_shape = opp_key[opp_shape]
 
-        if desired_outcome == 'X':  # I need to lose
+        if outcome_key[desired_outcome] == 'loss':  
             my_shape = matchups[opp_shape]
-        elif desired_outcome == 'Z':  # I need to win
+        elif outcome_key[desired_outcome] == 'win':  
             my_shape = inv_matchups[opp_shape] 
-        else:  # I need to draw
+        else:  
             my_shape = opp_shape  
         guide.append((opp_shape, my_shape))
     return guide
