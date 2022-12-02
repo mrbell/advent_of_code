@@ -30,7 +30,7 @@ shape_scores = {
 }
 
 
-def decrypt_guide_assumed(encrypted_guide):
+def decrypt_guide_assumed(encrypted_guide: List[str]) -> List[Tuple[str, str]]:
     guide = []
     for round in encrypted_guide:
         opp_shape, my_shape = round.split()
@@ -40,7 +40,7 @@ def decrypt_guide_assumed(encrypted_guide):
     return guide
 
 
-def decrypt_guide(encrypted_guide):
+def decrypt_guide(encrypted_guide: List[str]) -> List[Tuple[str, str]]:
     guide = []
     for round in encrypted_guide:
         opp_shape, desired_outcome = round.split()
@@ -56,7 +56,7 @@ def decrypt_guide(encrypted_guide):
     return guide
 
 
-def game_score(guide):
+def game_score(guide: List[Tuple[str, str]]) -> int:
     score = 0
     for (opp_shape, my_shape) in guide:
         outcome_score = 0
