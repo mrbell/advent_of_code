@@ -13,7 +13,7 @@ def read_input(day_num: Union[int, None]=None) -> str:
         day_num = puzzle_day
     with open(os.path.join(calling_file_path, './inputs/day{:>02}.txt'.format(day_num)), 'r') as f:
         contents = f.read()
-    return contents.strip()
+    return contents.rstrip()
 
 def read_input_lines(day_num: Union[int, None]=None) -> List[str]:
     if not day_num:
