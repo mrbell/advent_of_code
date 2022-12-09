@@ -3,12 +3,11 @@ import helper
 
 
 def clip(pos: Tuple[int, int], thresh: int=1) -> Tuple[int, int]:
-    new_pos = []
+    new_pos: List[int] = []
     for v in pos:
         v_sign = v // abs(v) if v != 0 else 1
         new_v = v_sign * min(abs(v), thresh)
         new_pos.append(new_v)
-        
     return tuple(new_pos) 
 
 
@@ -31,11 +30,11 @@ class Rope(object):
                 self.head_position = (self.head_position[0], self.head_position[1] - 1)
             else:
                 raise ValueError(f'Unknown direction: {direction}')
-            self.move_tail()
-            if verbose:
-                print_func(self)
+            self._move_tail()
+        if verbose:
+            print_func(self)
 
-    def move_tail(self):
+    def _move_tail(self):
 
         for i, tail in enumerate(self.tail_positions):
             if i == 0:
@@ -54,6 +53,20 @@ class Rope(object):
         self.tail_positions_visited.append(self.tail_positions[-1])
         
 
+def display(rope: Rope, grid_x: int=6, grid_y: int=5, init_x: int=0, init_y: int=0):
+    
+    grid = [['.' for _ in range(grid_x)] for _ in range(grid_y)]
+    grid[init_y][init_x] = 's'
+
+    for i, tail in enumerate(rope.tail_positions[::-1]):
+        grid[init_y + tail[1]][tail[0] + init_x] = str(len(rope.tail_positions) - i)
+    grid[init_y + rope.head_position[1]][rope.head_position[0] + init_x] = 'H'
+
+    for row in grid[::-1]:
+        print(''.join(row))
+    print()
+
+
 if __name__ == '__main__':
     ### THE TESTS
     test_moves = '''R 4
@@ -71,8 +84,21 @@ R 2'''.split('\n')
 
     rope = Rope(n_knots=10)
     for move in test_moves:
-        rope.move(move)
+        rope.move(move, verbose=True, print_func=lambda x: display(x, 6, 5))
     assert len(set(rope.tail_positions_visited)) == 1
+
+    longer_test_moves = '''R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20'''.split('\n')
+    rope = Rope(10)
+    for move in longer_test_moves:
+        rope.move(move, verbose=True, print_func=lambda x: display(x, 26, 21, 11, 5))
+    assert len(set(rope.tail_positions_visited)) == 36  
 
     ### THE REAL THING
     puzzle_input = helper.read_input_lines()
