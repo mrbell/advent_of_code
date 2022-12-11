@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional  
 import math
 from collections import defaultdict
 import helper
@@ -113,7 +113,7 @@ class Monkey(object):
     def receive_item(self, item: 'Item'):
         self.items.append(item)
 
-    def take_turn(self, worry_reduction: int=3) -> List[Tuple['Item', int]]:
+    def take_turn(self, worry_reduction: int=3, mod_op: Optional[int]=None) -> List[Tuple['Item', int]]:
         passed_items = []
         for item in self.items:
             self.items_inspected += 1
@@ -121,7 +121,10 @@ class Monkey(object):
             if worry_reduction > 1:
                 new_item = Item(self.operation(item).value // worry_reduction)
             elif worry_reduction == 1:
-                new_item = self.operation(item)
+                if mod_op is not None:
+                    new_item = Item(self.operation(item).value % mod_op)
+                else:
+                    new_item = self.operation(item)
             else:
                 raise ValueError(f'Worry reduction must be an integer greater than or equal to 1, not {worry_reduction}')
             
@@ -133,18 +136,26 @@ class Monkey(object):
         return passed_items
 
 
-def keep_away(monkeys: List[Monkey], n_rounds: int=20, verbose: bool=False, worry_reduction: int=3):
+def keep_away(monkeys: List[Monkey], n_rounds: int=20, verbose: bool=False, worry_reduction: int=3, use_mod_op: bool=False):
+
+    if use_mod_op:
+        mod_op = 1
+        for monkey in monkeys:
+            mod_op *= monkey.test_val
+    else: 
+        mod_op = None
+
     rounds = 0
     while rounds < n_rounds:
         for monkey in monkeys:
             if len(monkey.items) == 0:
                 continue
-            passed_items = monkey.take_turn(worry_reduction)
+            passed_items = monkey.take_turn(worry_reduction, mod_op)
             for item, recipient in passed_items:
                 monkeys[recipient].receive_item(item)
         rounds += 1
 
-        if verbose and (rounds == 1 or rounds == 20 or rounds % 40 == 0):
+        if verbose and (rounds == 1 or rounds == 20 or rounds % 1000 == 0):
             print(f'== After round {rounds} ==')
             for monkey in monkeys:
                 print(f'Monkey {monkey.id} inspected items {monkey.items_inspected} times')
@@ -197,8 +208,8 @@ Monkey 3:
     # print('\n'.join(f'{k} ** {item.prime_factors[k]}' for k in item.prime_factors))
 
     monkeys = [Monkey(input.split('\n')) for input in test_input]
-    keep_away(monkeys, n_rounds=1000, verbose=True, worry_reduction=1)
-    # assert monkey_business(monkeys) == 2713310158
+    keep_away(monkeys, n_rounds=10_000, verbose=True, worry_reduction=1, use_mod_op=True)
+    assert monkey_business(monkeys) == 2713310158
 
     ### THE REAL THING
     puzzle_input = helper.read_input().split('\n\n')
@@ -206,5 +217,5 @@ Monkey 3:
     keep_away(monkeys)
     print(f'Part 1: {monkey_business(monkeys)}')
     monkeys = [Monkey(input.split('\n')) for input in puzzle_input]
-    keep_away(monkeys, n_rounds=85, worry_reduction=1, verbose=True)
+    keep_away(monkeys, n_rounds=10_000, worry_reduction=1, verbose=True, use_mod_op=True)
     print(f'Part 2: {monkey_business(monkeys)}')
