@@ -4,6 +4,17 @@ from collections import defaultdict
 import helper
 
 
+'''
+This one was pretty messy. Part one was smooth enough. But part 2 was quite tough.
+It was clear that the issue was going to be with inefficiency from manipulating numbers that get really big.
+I spent a while going down a path trying to use prime factorization to speed things up, but it didn't work out because of the addition operations
+which ended up taking me back to using the original numbers. I was able to get it to work, but it was very slow.
+I ended up looking for hints on Reddit where I saw people mention using modulo arithmetic, given that we really only care about 
+the remainder of the division. 
+What I ended up doing is only storing the mod of the resulting value with the product of all of the divisors (which are all prime) rather than the 
+number itself. This means the worry levels of items never get larger than the product of my divisors, which isn't too large.
+'''
+
 class Item(object):
     def __init__(self, value: int):
         self.max_factor = 1
