@@ -26,7 +26,7 @@ class Chamber(object):
     def __init__(self, width: int):
         self.width = width
         self.height = 0
-        self.rocks: Set[Tuple[int, int]] = set()
+        self.rocks: Set[Tuple[int, int]] = set([(x, -1) for x in range(self.width)])
     
     def add_rocks(self, rock: 'Rock'):
         self.rocks = self.rocks.union(rock.positions)
@@ -50,6 +50,20 @@ class Chamber(object):
             '|' + ''.join('#' if (x, y) in rock_positions else '.' for x in range(self.width)) + '|'
             for y in range(height, -1, -1)
         ) + f'\n{indent}+{"-" * self.width}+'
+    
+    def _get_max_height_in_column(self, x: int) -> int:
+        return max(y for (x_, y) in self.rocks if x_ == x)
+    
+    def trim(self) -> bool:
+        # Remove buried rocks 
+        column_heights = [self._get_max_height_in_column(x) for x in range(self.width)]
+        new_floor = min(column_heights)
+        self.rocks = {(x, y) for (x, y) in self.rocks if y >= new_floor}
+
+        if max(column_heights) == new_floor:
+            return True
+        else:
+            return False
 
 
 def simulation(moves: str, n_rocks: int=2022) -> int:
@@ -61,15 +75,18 @@ def simulation(moves: str, n_rocks: int=2022) -> int:
 
     rock_height_offset = 3
 
+    new_level_floor_at = {}
+    found_cycle = False
+
     while rock_num < n_rocks:
         rock = Rock(rock_num % n_rock_types, chamber.height + rock_height_offset)
         rock_num += 1
         step = 0
 
-        if rock_num <= 10:
-            print(f'Rock {rock_num}:')
-            print(chamber.display(rock))
-            print()
+        # if rock_num <= 10:
+        #     print(f'Rock {rock_num}:')
+        #     print(chamber.display(rock))
+        #     print()
         
         while True:
             if step % 2 == 0:  # Wind pushes the rock
@@ -88,17 +105,48 @@ def simulation(moves: str, n_rocks: int=2022) -> int:
                     step = 0
                     break
             
-            if rock_num <= 2:
-                print(f'  Step {step}:')
-                print(chamber.display(rock, '  '))
-                print()
+            # if rock_num <= 2:
+            #     print(f'  Step {step}:')
+            #     print(chamber.display(rock, '  '))
+            #     print()
 
             step += 1
 
+        if chamber.trim():  # Floor is flat
+            if ((rock_num % n_rock_types) == 1) and (move_num % n_moves) not in new_level_floor_at:
+                new_level_floor_at[move_num % n_moves] = {'height': chamber.height, 'rock_num': rock_num, 'move_num': move_num}
+                print(new_level_floor_at)
+            elif not found_cycle and ((rock_num % n_rock_types) == 1):
+                found_cycle = True
+                print(f'Found a cycle at {move_num % n_moves}!')
+                print(f'Height: {chamber.height} Rock number: {rock_num} Move number: {move_num}') 
+                
+                last_height = new_level_floor_at[move_num % n_moves]['height']
+                height_added_per_cycle = chamber.height - last_height
+                print(f'Height added per cycle: {height_added_per_cycle}')
+
+                last_rock_num = new_level_floor_at[move_num % n_moves]['rock_num']
+                rock_num_added_per_cycle = rock_num - last_rock_num
+                cycles_to_go = (n_rocks - rock_num) // rock_num_added_per_cycle
+                print(f'Rock number added per cycle: {rock_num_added_per_cycle}')
+                print(f'Cycles to go: {cycles_to_go}')
+
+
+                last_move_num = new_level_floor_at[move_num % n_moves]['move_num']
+                move_num_added_per_cycle = move_num - last_move_num
+                print(f'Move number added per cycle: {move_num_added_per_cycle}')
+
+                chamber.height += cycles_to_go * height_added_per_cycle
+                chamber.rocks = {(x, chamber.height) for x in range(chamber.width)}
+
+                rock_num += cycles_to_go * rock_num_added_per_cycle
+                move_num += cycles_to_go * move_num_added_per_cycle
+            
     return chamber.height
 
 
 if __name__ == '__main__':
+
     ### THE TESTS
     test_input = '''>>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>'''
     max_height = simulation(test_input)
@@ -108,4 +156,11 @@ if __name__ == '__main__':
     puzzle_input = helper.read_input()
     max_height = simulation(puzzle_input)
     print(f'Part 1: {max_height}')
-    print(f'Part 2: {""}')
+    large_n = 1_000_000  # _000_000
+    # 1595973 for 1_000_000 rocks
+    # 159620 for 100000 rocks
+    # Adding 2785 height per cycle
+    # Adding 1745 rocks per cycle
+    # Adding 10091 moves per cycle
+    max_height = simulation(puzzle_input, 1000000)  # large_n)
+    print(f'Part 2: {max_height}')
