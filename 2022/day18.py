@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Set
 import helper
 
 
@@ -15,11 +15,11 @@ directions = [(0,0,1), (0,0,-1), (0,1,0), (0,-1,0), (1,0,0), (-1,0,0)]
 
 class Droplet(object):
     def __init__(self, cube_coords: List[str]):
-        self.cubes: List['Cube'] = []
+        self.cubes: Set['Cube'] = set()
         self._surface_area = 0
         for cube_coord in cube_coords:
             x, y, z = cube_coord.split(',')
-            self.cubes.append((int(x), int(y), int(z)))
+            self.cubes.add((int(x), int(y), int(z)))
         self._bounds = None
 
     @property 
@@ -52,7 +52,13 @@ class Droplet(object):
         return x < x_min or x > x_max or y < y_min or y > y_max or z < z_min or z > z_max
 
 
-def seek_exterior(droplet: 'Droplet', coord: 'Cube', visited_coords: Optional[List['Cube']]=None) -> bool:
+def seek_exterior(
+    droplet: 'Droplet', 
+    coord: 'Cube', 
+    leads_out: Set['Cube'],
+    leads_to_dead_end: Set['Cube'],
+    visited_coords: Optional[List['Cube']]=None,
+) -> bool:
     if visited_coords is None:
         visited_coords = []
 
@@ -62,12 +68,17 @@ def seek_exterior(droplet: 'Droplet', coord: 'Cube', visited_coords: Optional[Li
         return False
     for side in directions:
         next_coord = (coord[0] + side[0], coord[1] + side[1], coord[2] + side[2])
-
-        if (
-            (next_coord not in visited_coords) and 
-            seek_exterior(droplet, next_coord, visited_coords + [coord])
-        ):
+        if next_coord in visited_coords:
+            continue
+        if next_coord in leads_to_dead_end:
+            return False
+        if next_coord in leads_out:
             return True
+        if seek_exterior(droplet, next_coord, leads_out, leads_to_dead_end, visited_coords + [coord]):
+            leads_out.add(coord)
+            return True
+    
+    leads_to_dead_end.add(coord)
     return False
 
 
@@ -75,10 +86,13 @@ def exterior_surface_area(droplet: 'Droplet') -> int:
     
     surface_area = 0
 
+    leads_out = set()
+    leads_to_dead_end = set()
+
     for cube in droplet.cubes:
         for side in directions:
             current_position = (cube[0] + side[0], cube[1] + side[1], cube[2] + side[2]) 
-            if seek_exterior(droplet, current_position):
+            if seek_exterior(droplet, current_position, leads_out, leads_to_dead_end): 
                 surface_area += 1
     
     return surface_area
@@ -107,6 +121,6 @@ if __name__ == '__main__':
     ### THE REAL THING
     puzzle_input = helper.read_input_lines()
     droplet = Droplet(puzzle_input)
-    print(f'Part 1: {droplet.surface_area}')
-    surface_area = exterior_surface_area(droplet)
-    print(f'Part 2: {surface_area}')
+    print(f'Part 1: {droplet.surface_area}')  # 4400 is the answer
+    surface_area = exterior_surface_area(droplet) 
+    print(f'Part 2: {surface_area}')  # 2510 is too low
