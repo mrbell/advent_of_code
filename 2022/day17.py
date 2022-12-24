@@ -115,29 +115,29 @@ def simulation(moves: str, n_rocks: int=2022) -> int:
         if chamber.trim():  # Floor is flat
             if ((rock_num % n_rock_types) == 1) and (move_num % n_moves) not in new_level_floor_at:
                 new_level_floor_at[move_num % n_moves] = {'height': chamber.height, 'rock_num': rock_num, 'move_num': move_num}
-                print(new_level_floor_at)
+                # print(new_level_floor_at)
             elif not found_cycle and ((rock_num % n_rock_types) == 1):
                 found_cycle = True
-                print(f'Found a cycle at {move_num % n_moves}!')
-                print(f'Height: {chamber.height} Rock number: {rock_num} Move number: {move_num}') 
+                # print(f'Found a cycle at {move_num % n_moves}!')
+                # print(f'Height: {chamber.height} Rock number: {rock_num} Move number: {move_num}') 
                 
                 last_height = new_level_floor_at[move_num % n_moves]['height']
                 height_added_per_cycle = chamber.height - last_height
-                print(f'Height added per cycle: {height_added_per_cycle}')
+                # print(f'Height added per cycle: {height_added_per_cycle}')
 
                 last_rock_num = new_level_floor_at[move_num % n_moves]['rock_num']
                 rock_num_added_per_cycle = rock_num - last_rock_num
                 cycles_to_go = (n_rocks - rock_num) // rock_num_added_per_cycle
-                print(f'Rock number added per cycle: {rock_num_added_per_cycle}')
-                print(f'Cycles to go: {cycles_to_go}')
+                # print(f'Rock number added per cycle: {rock_num_added_per_cycle}')
+                # print(f'Cycles to go: {cycles_to_go}')
 
 
                 last_move_num = new_level_floor_at[move_num % n_moves]['move_num']
                 move_num_added_per_cycle = move_num - last_move_num
-                print(f'Move number added per cycle: {move_num_added_per_cycle}')
+                # print(f'Move number added per cycle: {move_num_added_per_cycle}')
 
                 chamber.height += cycles_to_go * height_added_per_cycle
-                chamber.rocks = {(x, chamber.height) for x in range(chamber.width)}
+                chamber.rocks = {(x, chamber.height - 1) for x in range(chamber.width)}
 
                 rock_num += cycles_to_go * rock_num_added_per_cycle
                 move_num += cycles_to_go * move_num_added_per_cycle
@@ -152,15 +152,20 @@ if __name__ == '__main__':
     max_height = simulation(test_input)
     assert max_height == 3068
 
+    # TODO: Solution is not generalized... need to modify to handle arbitrary input
+    # Probably remove the check for rock_type 1 in the logic above
+    # max_height = simulation(test_input, 1_000_000_000_000)
+    # assert max_height == 1514285714288
+
     ### THE REAL THING
     puzzle_input = helper.read_input()
     max_height = simulation(puzzle_input)
     print(f'Part 1: {max_height}')
-    large_n = 1_000_000  # _000_000
+    large_n = 1_000_000_000_000
     # 1595973 for 1_000_000 rocks
     # 159620 for 100000 rocks
     # Adding 2785 height per cycle
     # Adding 1745 rocks per cycle
     # Adding 10091 moves per cycle
-    max_height = simulation(puzzle_input, 1000000)  # large_n)
+    max_height = simulation(puzzle_input, large_n)
     print(f'Part 2: {max_height}')
