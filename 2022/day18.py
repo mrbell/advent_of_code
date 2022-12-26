@@ -62,6 +62,7 @@ def seek_exterior(
     leads_to_dead_end: Set['Cube'],
     visited_coords: Optional[List['Cube']]=None,
 ) -> bool:
+    first_call = visited_coords is None
     if visited_coords is None:
         visited_coords = []
 
@@ -74,19 +75,18 @@ def seek_exterior(
     if coord in leads_to_dead_end:
         return False
 
+    visited_coords.append(coord)
+
     for side in directions:
         next_coord = (coord[0] + side[0], coord[1] + side[1], coord[2] + side[2])
         if next_coord in visited_coords:
             continue
-        if next_coord in leads_to_dead_end:
-            return False
-        if next_coord in leads_out:
-            return True
-        if seek_exterior(droplet, next_coord, leads_out, leads_to_dead_end, visited_coords + [coord]):
+        if seek_exterior(droplet, next_coord, leads_out, leads_to_dead_end, visited_coords):
             leads_out.add(coord)
             return True
-    
-    leads_to_dead_end.add(coord)
+
+    if first_call: 
+        leads_to_dead_end.intersection(visited_coords)
     return False
 
 
@@ -560,5 +560,7 @@ if __name__ == '__main__':
     puzzle_input = helper.read_input_lines()
     droplet = Droplet(puzzle_input)
     print(f'Part 1: {droplet.surface_area}')  # 4400 is the answer
+    import sys
+    sys.setrecursionlimit(10000)  # don't love that I had to do this, but it works
     surface_area = exterior_surface_area(droplet) 
     print(f'Part 2: {surface_area}')  # 2510 is too low
