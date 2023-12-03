@@ -56,10 +56,13 @@ def find_adjacent_part_nos(schematic: List[str], row: int, col: int) -> List[int
                         c_start = c
                         while c_start > 0 and schematic[r][c_start - 1].isdigit():
                             c_start -= 1
-                        c_end = c
-                        while c_end < len(schematic[r]) and schematic[r][c_end + 1].isdigit():
+                        try:
+                            c_end = c
+                            while c_end < len(schematic[r]) and schematic[r][c_end + 1].isdigit():
+                                c_end += 1
                             c_end += 1
-                        c_end += 1
+                        except IndexError:
+                            c_end = len(schematic[r])
                         part_no = int(schematic[r][c_start:c_end])
                         adjacent_part_nos.append(part_no)
                         c = c_end
