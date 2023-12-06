@@ -15,6 +15,57 @@ class AlmanacMap:
                 break 
 
         return target_val if target_val is not None else source_val
+    
+    def target_ranges(self, source_start_val: int, source_end_val: int) -> List[Tuple[int, int]]:
+        '''Given a source range, return a list of target ranges that are mapped to by the source range'''
+
+        target_ranges = []
+
+        maps = sorted(self.source_target_maps, key=lambda x: x[1])
+
+        if source_start_val >= (maps[-1][1] + maps[-1][2]) or source_end_val < maps[0][1]:
+            # no overlap with the map source ranges
+            target_ranges.append((source_start_val, source_end_val))
+            return target_ranges
+
+        if source_start_val < maps[0][1]:
+            # source range starts before the first map source range
+            target_ranges.append((source_start_val, min(source_end_val, maps[0][1] - 1)))
+            source_start_val = maps[0][1]
+
+        if source_end_val >= (maps[-1][1] + maps[-1][2]):
+            # source range ends after the last map source range
+            target_ranges.append((max(source_start_val, maps[-1][1] + maps[-1][2]), source_end_val))
+            source_end_val = maps[-1][1] + maps[-1][2] - 1
+
+        # At this point the source range is guaranteed to overlap with the map source ranges
+        for i, the_map in enumerate(maps):
+            
+            if source_start_val >= (the_map[1] + the_map[2]):
+                # source range starts after this map source range
+                continue
+            
+            if source_start_val < the_map[1]:
+                # source range starts before this map source range
+                target_ranges.append((source_start_val, min(source_end_val, the_map[1] + the_map[2] - 1)))
+                source_start_val = the_map[1]
+
+            if source_end_val < the_map[1]:
+                # source range ends before this map source range
+                break
+
+            target_val_start = self.target(source_start_val)
+            if source_end_val < (the_map[1] + the_map[2]):
+                # source range ends before this map source range
+                target_ranges.append((target_val_start, self.target(source_end_val)))
+                break
+            else:
+                # source range ends after this map source range
+                target_val_end = self.target(the_map[1] + the_map[2] - 1)
+                target_ranges.append((target_val_start, target_val_end))
+                source_start_val = the_map[1] + the_map[2]
+
+        return target_ranges
 
 
 @dataclass
@@ -26,11 +77,32 @@ class Almanac:
         t, m = self.maps[source_type]
         v = source_val
 
+        v = m.target(v)
         while t != target_type:
+            t, m = self.maps[t]
             v = m.target(v)
+
+        return v
+
+    def range_from_to(self, source_type, target_type, source_start_val, source_end_val):
+        t, m = self.maps[source_type]
+        vs = [(source_start_val, source_end_val)]
+
+        while t != target_type:
+            new_vs = []
+            for v in vs:
+                new_v = m.target_ranges(*v)
+                new_vs.extend(new_v)
+            vs = new_vs
             t, m = self.maps[t]
 
-        return  m.target(v)
+        new_vs = []
+        for v in vs:
+            new_v = m.target_ranges(*v)
+            new_vs.extend(new_v)
+        vs = new_vs
+        
+        return vs
 
 
 def parse_almanac(puzzle_input: str) -> Almanac:
@@ -54,7 +126,7 @@ def parse_seeds(seed_input: List[int]) -> List[int]:
     seeds = []
     for i, s in enumerate(seed_input):
         if i % 2 == 0:
-            seeds.extend(list(range(s, s + seed_input[i + 1])))
+            seeds.append((s, s + seed_input[i + 1] - 1))
     return seeds
 
 
@@ -71,8 +143,11 @@ def part2(puzzle_input: str) -> int:
     locations = []
     seeds = parse_seeds(almanac.seeds)
     for seed in seeds:
-        locations.append(almanac.from_to('seed', 'location', seed))
-    return min(locations)
+        locations.extend(almanac.range_from_to('seed', 'location', *seed))
+    expanded_locations = []
+    for location in locations:
+        expanded_locations.extend(list(location))
+    return min(expanded_locations)
 
 
 if __name__ == '__main__':
