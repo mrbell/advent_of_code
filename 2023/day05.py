@@ -17,6 +17,8 @@ class AlmanacMap:
         return target_val if target_val is not None else source_val
     
     def target_ranges(self, source_start_val: int, source_end_val: int) -> List[Tuple[int, int]]:
+        '''Given a source range, return a list of target ranges that are mapped to by the source range'''
+
         target_ranges = []
 
         maps = sorted(self.source_target_maps, key=lambda x: x[1])
@@ -36,6 +38,7 @@ class AlmanacMap:
             target_ranges.append((max(source_start_val, maps[-1][1] + maps[-1][2]), source_end_val))
             source_end_val = maps[-1][1] + maps[-1][2] - 1
 
+        # At this point the source range is guaranteed to overlap with the map source ranges
         for i, the_map in enumerate(maps):
             
             if source_start_val >= (the_map[1] + the_map[2]):
