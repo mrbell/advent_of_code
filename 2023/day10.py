@@ -95,12 +95,26 @@ def is_interior(x, y, grid, network) -> bool:
     n_crossings = 0
     dx, dy = dirs[dir]
     while True:
-        next_x, next_y = x + dx, y + dy
-        if next_x < 0 or next_x >= len(grid[0]) or next_y < 0 or next_y >= len(grid):
+        x, y = x + dx, y + dy
+        if y < 0:
+            # We're off the map
             break
-        if (next_x, next_y) in network and network[(next_x, next_y)].pipe in 'LJ7F-':
+
+        if (x, y) not in network:
+            continue
+
+        this_pipe = network[(x, y)].pipe
+
+        if this_pipe == '-':
             n_crossings += 1
-        x, y = next_x, next_y
+        elif this_pipe in 'JL':
+            cross_start = this_pipe
+        elif this_pipe in 'F7':
+            cross_end = this_pipe
+            if (cross_start == 'J' and cross_end == 'F') or (cross_start == 'L' and cross_end == '7'):
+                n_crossings += 1
+            cross_start = None
+            cross_end = None
 
     if n_crossings % 2 == 0:
         return False
