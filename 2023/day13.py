@@ -46,17 +46,17 @@ def find_mirror(pattern: List[str]) -> List[Tuple[int, int]]:
     return splits
 
 
+def score(split: int, direction: int) -> int:
+    return split * (100 - direction * 99)
+
+
 def part1(puzzle_input: str) -> int:
     patterns = parse_patterns(puzzle_input)
     total = 0
     for pattern in patterns:
         splits = find_mirror(pattern)
-        if len(splits) == 0:
-            raise ValueError('No mirror found')
-        if len(splits) > 1:
-            raise ValueError('Multiple mirrors found')
         split, direction = splits[0]
-        total += split * (100 - direction * 99)  # direction = 0 if mirror is horizontal, 1 if vertical
+        total += score(split, direction)
 
     return total
 
@@ -76,24 +76,15 @@ def find_other_mirror(pattern: List[str]) -> Tuple[int, int]:
                 if split > 0 and (split != original_split or direction != original_direction):
                     return split, direction
     
-    print('\n'.join(pattern))
-    print(f'Split: {original_split}, Direction: {original_direction}')
     raise ValueError('No other mirror found')
-    # return -1, -1
 
 
 def part2(puzzle_input: str) -> int:
     patterns = parse_patterns(puzzle_input)
     total = 0
-    missing_count = 0
     for pattern in patterns:
-        try:
-            split, direction = find_other_mirror(pattern)
-        except ValueError:
-            missing_count += 1
-            continue
-        total += split * (100 - direction * 99)
-    print(f'Missing: {missing_count} / {len(patterns)}')
+        split, direction = find_other_mirror(pattern)
+        total += score(split, direction)
     return total 
 
 
@@ -134,4 +125,4 @@ if __name__ == '__main__':
     ### THE REAL THING
     puzzle_input = helper.read_input()
     print(f'Part 1: {part1(puzzle_input)}')
-    print(f'Part 2: {part2(puzzle_input)}')  # 23500 is too low
+    print(f'Part 2: {part2(puzzle_input)}')
