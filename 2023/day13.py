@@ -25,47 +25,56 @@ def transpose(pattern: List[str]) -> List[str]:
     return [''.join([line[i] for line in pattern]) for i in range(len(pattern[0]))]
 
 
-def find_mirror_horizontal(pattern: List[str]) -> int:
-    for i, line in enumerate(pattern[:-1]):
+def find_mirror_horizontal(pattern: List[str]) -> List[int]:
+    matches = []
+    for i, _ in enumerate(pattern[:-1]):
         if test_mirror(pattern, i):
-            return i + 1
-    return -1
+            matches.append(i + 1)
+    return matches
 
 
-def find_mirror(pattern: List[str]) -> Tuple[int, int]:
-    split = find_mirror_horizontal(pattern)
-    if split >= 0:
-        return split, 0
+def find_mirror(pattern: List[str]) -> List[Tuple[int, int]]:
+    splits = find_mirror_horizontal(pattern)
+    splits = [(split, 0) for split in splits]
+
     tpattern = transpose(pattern)
-    split = find_mirror_horizontal(tpattern)
-    if split >= 0:
-        return split, 1
-    return -1, -1
+    other_splits = find_mirror_horizontal(tpattern)
+    other_splits = [(split, 1) for split in other_splits]
+
+    splits.extend(other_splits)
+
+    return splits
 
 
 def part1(puzzle_input: str) -> int:
     patterns = parse_patterns(puzzle_input)
     total = 0
     for pattern in patterns:
-        split, direction = find_mirror(pattern)
+        splits = find_mirror(pattern)
+        if len(splits) == 0:
+            raise ValueError('No mirror found')
+        if len(splits) > 1:
+            raise ValueError('Multiple mirrors found')
+        split, direction = splits[0]
         total += split * (100 - direction * 99)  # direction = 0 if mirror is horizontal, 1 if vertical
 
     return total
 
 
-def find_other_mirror(pattern: List[str]) -> int:
+def find_other_mirror(pattern: List[str]) -> Tuple[int, int]:
 
-    original_split, original_direction = find_mirror(pattern)
+    splits = find_mirror(pattern)
+    original_split, original_direction = splits[0]
+
     for i, line in enumerate(pattern):
         for j, char in enumerate(line):
             new_char = flip_char[char]
             pattern_copy = pattern.copy()
             pattern_copy[i] = pattern_copy[i][:j] + new_char + pattern_copy[i][j+1:]
-            split, direction = find_mirror(pattern_copy)
-            if split > 0 and (split != original_split or direction != original_direction):
-                if (direction == 0 and split == len(pattern)) or (direction == 1 and split == len(pattern[0])):
-                    raise IndexError('Unexpected split')
-                return split, direction
+            splits = find_mirror(pattern_copy)
+            for split, direction in splits:
+                if split > 0 and (split != original_split or direction != original_direction):
+                    return split, direction
     
     print('\n'.join(pattern))
     print(f'Split: {original_split}, Direction: {original_direction}')
@@ -119,7 +128,7 @@ if __name__ == '__main__':
 ..#......
 .##..##..
 .##..##..'''.splitlines()
-    assert find_mirror(test_pattern) == (8, 0)
+    assert find_mirror(test_pattern)[0] == (8, 0)
     assert find_other_mirror(test_pattern) == (6, 1)
 
     ### THE REAL THING
