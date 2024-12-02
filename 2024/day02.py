@@ -24,7 +24,7 @@ def report_is_safe(report: List[int]) -> bool:
     return True
 
 
-def is_report_safe_with_problem_dampener(report: List[int]) -> bool:
+def report_is_safe_with_problem_dampener(report: List[int]) -> bool:
     if report_is_safe(report):
         return True
     for i, _ in enumerate(report):
@@ -35,7 +35,7 @@ def is_report_safe_with_problem_dampener(report: List[int]) -> bool:
 
 
 def count_safe_reports(reports: List[List[int]], dampener=False) -> int:
-    func = is_report_safe_with_problem_dampener if dampener else report_is_safe
+    func = report_is_safe_with_problem_dampener if dampener else report_is_safe
     return sum(1 if func(x) else 0 for x in reports)
 
 
