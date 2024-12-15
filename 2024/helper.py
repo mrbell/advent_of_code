@@ -20,3 +20,6 @@ def read_input_lines(day_num: Union[int, None]=None) -> List[str]:
         day_num = puzzle_day
     contents = read_input(day_num)
     return [c for c in contents.split('\n') if c.strip()]
+
+def check(ans: int, expected: int):
+    assert ans == expected, f'Expected: {expected}, got: {ans}'
