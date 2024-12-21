@@ -79,9 +79,7 @@ def fine_ill_use_dijkstra(maze: Maze):
 
     Q = set(Q)
 
-    end_nodes = set([q for q in Q if q[0] == maze.end])
-
-    while Q:  # and len(end_nodes.intersection(Q)) > 0:
+    while Q:  
         # print(len(Q))
         u = min(Q, key=lambda x: costs[x])
         (i, j), direction = u
@@ -99,16 +97,38 @@ def fine_ill_use_dijkstra(maze: Maze):
             alt = costs[u] + step_cost if neighbor[1] == direction else costs[u] + turn_cost
             if alt < costs[neighbor]:
                 costs[neighbor] = alt
-                prev[neighbor] = u
+                prev[neighbor] = [u]
+            elif alt == costs[neighbor]:
+                if prev[neighbor] is None:
+                    prev[neighbor] = []
+                prev[neighbor].append(u)
         
     return costs, prev
-            
+
+
+def walk_back_from(start_node, prev, end_node, the_path):
+    the_path = list(the_path) + [start_node]
+    if start_node == end_node:
+        return the_path
+    other_nodes = prev[start_node]
+    for other_node in other_nodes:
+        new_path = walk_back_from(other_node, prev, end_node, the_path)
+        the_path = set(new_path).union(the_path)
+    return the_path
+
+
 
 def find_shortest_paths(maze: Maze, costs, prev):
-    paths = []
+    path_nodes = []
     end_costs = [(costs[(maze.end, direction)], direction) for direction in directions if (maze.end, direction) in costs]
     min_cost, end_direction = min(end_costs)
+    end_nodes = [k for k in costs if k[0] == maze.end and costs[k] == min_cost]
 
+    for node in end_nodes:
+        the_path = []
+        path_nodes.extend(walk_back_from(node, prev, (maze.start, 'E'), the_path))
+    
+    return path_nodes
 
 
 def navigate_maze(
@@ -170,6 +190,17 @@ def part1(puzzle_input: List[str]) -> int:
     return min(end_costs)
 
 
+def part2(puzzle_input: List[str]) -> int:
+    maze = Maze(puzzle_input)
+    costs, prev = fine_ill_use_dijkstra(maze)
+
+    the_paths = find_shortest_paths(maze, costs, prev)
+
+    unique_nodes = set([p[0] for p in the_paths])
+
+    return len(unique_nodes)
+
+
 if __name__ == '__main__':
     ### THE TESTS
     example_input = '''###############
@@ -189,6 +220,9 @@ if __name__ == '__main__':
 ###############'''.split('\n')
     result = part1(example_input)
     helper.check(result, 7036)
+
+    result = part2(example_input)
+    helper.check(result, 45)
 
     example_input = '''#################
 #...#...#...#..E#
@@ -210,11 +244,10 @@ if __name__ == '__main__':
     result = part1(example_input)
     helper.check(result, 11048)
 
-
-    # TODO: Prune graph and try stopping when end is reached
-    # TODO: Implement reverse search to find the shortest paths
+    result = part2(example_input)
+    helper.check(result, 64)
 
     ### THE REAL THING
     puzzle_input = helper.read_input_lines()
     print(f'Part 1: {part1(puzzle_input)}')
-    print(f'Part 2: {""}')
+    print(f'Part 2: {part2(puzzle_input)}')
