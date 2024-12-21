@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from dataclasses import dataclass
 import helper
 
@@ -12,6 +12,7 @@ turn_cost = 1000
 @dataclass
 class Maze:
     maze: List[str]
+    cache = {}  # Cache to store the cost of each location and direction
     
     def __post_init__(self):
         self.start = self.find_start()
@@ -29,28 +30,85 @@ class Maze:
     def find_end(self):
         return self._find_char('E')
     
-    def print(self, location=None, direction=None):
-        match direction:
-            case 'N': 
-                mychar = '^'
-            case 'S':
-                mychar = 'v'
-            case 'E':
-                mychar = '>'
-            case 'W':
-                mychar = '<'
+    def print(self, path: Optional[List[Tuple[Tuple[int, int], str]]] = None):
         to_plot = []
         for i, row in enumerate(self.maze):
             to_plot_row = []
             for j, c in enumerate(row):
-                if (i, j) == location:
-                    to_plot_row.append(mychar)
-                elif c in ('S', 'E'):
-                    to_plot_row.append('.')
-                else:
-                    to_plot_row.append(c)
-            to_plot.append(''.join(to_plot_row))
+                to_plot_row.append(c)
+            to_plot.append(to_plot_row)
+            
+        if path:
+            for location, direction in path:
+                match direction:
+                    case 'N': 
+                        mychar = '^'
+                    case 'S':
+                        mychar = 'v'
+                    case 'E':
+                        mychar = '>'
+                    case 'W':
+                        mychar = '<'
+                to_plot[location[0]][location[1]] = mychar
+        
+        to_plot = [''.join(row) for row in to_plot]
         print('\n'.join(row for row in to_plot))
+
+
+def fine_ill_use_dijkstra(maze: Maze):
+    costs = {}
+    prev = {}  # TODO: Modify to store multiple previous locations if equal cost
+    Q = []
+    for i, row in enumerate(maze.maze):
+        for j, c in enumerate(row):
+            if c == wall_char:
+                continue
+            for direction in directions:
+                step_in_direction = direction_steps[direction]
+                if (maze.maze[i + step_in_direction[0]][j + step_in_direction[1]] != wall_char) or (
+                    maze.maze[i - step_in_direction[0]][j - step_in_direction[1]] != wall_char
+                ):
+                    # Must not have a wall behind or in front to make this a viable location/direction
+                    costs[((i, j), direction)] = float('inf')
+                    prev[((i, j), direction)] = None
+                    Q.append(((i, j), direction))
+    costs[(maze.start, 'E')] = 0
+    prev[(maze.start, 'E')] = None
+    if (maze.start, 'E') not in Q:
+        Q.append((maze.start, 'E'))
+
+    Q = set(Q)
+
+    end_nodes = set([q for q in Q if q[0] == maze.end])
+
+    while Q:  # and len(end_nodes.intersection(Q)) > 0:
+        # print(len(Q))
+        u = min(Q, key=lambda x: costs[x])
+        (i, j), direction = u
+        Q.remove(u)
+
+        neighbors = [
+            ((i + direction_steps[direction][0], j + direction_steps[direction][1]), direction),
+            ((i, j), directions[(directions.index(direction) + 1) % 4]),
+            ((i, j), directions[(directions.index(direction) - 1) % 4])
+        ]
+
+        for neighbor in neighbors:        
+            if neighbor not in Q:
+                continue
+            alt = costs[u] + step_cost if neighbor[1] == direction else costs[u] + turn_cost
+            if alt < costs[neighbor]:
+                costs[neighbor] = alt
+                prev[neighbor] = u
+        
+    return costs, prev
+            
+
+def find_shortest_paths(maze: Maze, costs, prev):
+    paths = []
+    end_costs = [(costs[(maze.end, direction)], direction) for direction in directions if (maze.end, direction) in costs]
+    min_cost, end_direction = min(end_costs)
+
 
 
 def navigate_maze(
@@ -61,10 +119,10 @@ def navigate_maze(
     cost: int
 ) -> int:
     
-    maze.print(location, direction)
-
     visited = visited.copy()
     visited.append((location, direction))
+    
+    maze.print(visited)
     
     if location == maze.end:
         return cost
@@ -73,14 +131,22 @@ def navigate_maze(
 
     next_location = (location[0] + direction_steps[direction][0], location[1] + direction_steps[direction][1])
     if maze.maze[next_location[0]][next_location[1]] != wall_char and next_location not in [loc for loc, _ in visited]:
-        fwd_cost = navigate_maze(maze, next_location, direction, visited, cost + step_cost) 
-        costs.append(fwd_cost)
+        cost_to_move = cost + step_cost
+        if (next_location, direction) not in maze.cache or maze.cache[(next_location, direction)] > cost_to_move:
+            maze.cache[(next_location, direction)] = cost_to_move
+            fwd_cost = navigate_maze(maze, next_location, direction, visited, cost_to_move)
+            costs.append(fwd_cost)
+            visited.append((next_location, direction))
 
     for new_dir in [-1, 1]:
         new_direction = directions[(directions.index(direction) + new_dir) % 4]
         next_location = (location[0] + direction_steps[new_direction][0], location[1] + direction_steps[new_direction][1])
         if maze.maze[next_location[0]][next_location[1]] != wall_char and next_location not in [loc for loc, _ in visited]:
-            costs.append(navigate_maze(maze, location, new_direction, visited, cost + turn_cost))
+            cost_to_move = cost + turn_cost
+            if (location, new_direction) not in maze.cache or maze.cache[(location, new_direction)] > cost_to_move:
+                maze.cache[(location, new_direction)] = cost_to_move
+                costs.append(navigate_maze(maze, location, new_direction, visited, cost_to_move))
+                visited.append((location, new_direction))
      
     if len(costs) == 0:
         # Return ininity cost if a deadend is reached
@@ -89,9 +155,19 @@ def navigate_maze(
     return min(costs)
 
 
-def part1(puzzle_input: List[str]) -> int:
+def part1_not_working(puzzle_input: List[str]) -> int:
     maze = Maze(puzzle_input)
     return navigate_maze(maze, maze.start, 'E', [], 0)
+
+
+def part1(puzzle_input: List[str]) -> int:
+    import time 
+    maze = Maze(puzzle_input)
+    t0 = time.time()
+    costs, prev = fine_ill_use_dijkstra(maze)
+    print(f"Time to execute: {time.time() - t0:.2f} s")
+    end_costs = [costs[(maze.end, direction)] for direction in directions if (maze.end, direction) in costs]
+    return min(end_costs)
 
 
 if __name__ == '__main__':
@@ -133,6 +209,10 @@ if __name__ == '__main__':
 #################'''.split('\n')
     result = part1(example_input)
     helper.check(result, 11048)
+
+
+    # TODO: Prune graph and try stopping when end is reached
+    # TODO: Implement reverse search to find the shortest paths
 
     ### THE REAL THING
     puzzle_input = helper.read_input_lines()
