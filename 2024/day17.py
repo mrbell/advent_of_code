@@ -194,6 +194,18 @@ def find_output_upper(puzzle_input: str) -> int:
 
 
 def part2(puzzle_input: str) -> int:
+    '''
+    Manually searched through as follows
+    - Find the lower and upper A registers that produce the correct length of output
+    - Split the range up into 200 parts
+    - Find the A register just before and after the one that produces the correct last digit of the output
+    - Search through the range of A registers between the two found above to find the range in which the next to last digit fallse within
+    - Repeat until the lower to upper bounds are small enough to linear search
+
+
+    I could automate this process, but it's not worth the time to do so right now
+    Interesting as it's not a binary search because there isn't a monotonically increasing value to search over but kind of similar in concept
+    '''
 
     lower_Areg = find_output_lower(puzzle_input)
     upper_Areg = find_output_upper(puzzle_input)
