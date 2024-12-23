@@ -116,6 +116,48 @@ def find_possible_shortcuts(maze: Maze) -> List[Cell]:
     return shortcuts
 
 
+def manhattan_distance(cell1: Cell, cell2: Cell) -> int:
+    return abs(cell1.x - cell2.x) + abs(cell1.y - cell2.y)
+
+
+def find_possible_shortcuts_longer(maze: Maze, costs: Dict[Cell, int], max_dist: int = 20) -> Dict[Tuple[Cell, Cell], int]:
+    shortcuts = {}
+
+    for y, row in enumerate(maze.maze):
+        for x, cell_val in enumerate(row):
+            if cell_val != '#':
+                cell1 = Cell(x, y)
+                for dx in range(-max_dist, max_dist):
+                    for dy in range(-max_dist, max_dist):
+                        
+                        if dx == 0 and dy == 0:
+                            continue
+
+                        cell2 = Cell(x + dx, y + dy)
+                        dist = manhattan_distance(cell1, cell2)
+                        
+                        if (cell1, cell2) in shortcuts or (cell2, cell1) in shortcuts:
+                            # Already checked
+                            continue
+                        if cell2.x < 0 or cell2.x >= maze.nx or cell2.y < 0 or cell2.y >= maze.ny:
+                            # Out of bounds
+                            continue
+                        if maze[cell2] == '#':
+                            # Wall
+                            continue
+                        if dist > max_dist:
+                            # Too far
+                            continue
+                        if abs(costs[cell2] - costs[cell1]) <= dist:
+                            # Not a shortcut
+                            continue
+                        
+                        shortcuts[(cell1, cell2)] = abs(costs[cell1] - costs[cell2]) - dist
+    
+    return shortcuts
+                
+
+
 def check_shortcut(maze: Maze, shortcut: Cell, costs: Dict[Cell, int]) -> int:
 
     neighbors = get_neighbors(shortcut, maze)
@@ -141,18 +183,9 @@ def check_shortcut(maze: Maze, shortcut: Cell, costs: Dict[Cell, int]) -> int:
 def part1(puzzle_input: List[str]) -> int:
     maze = get_maze(puzzle_input)
     costs = dijstra(maze)
-    default_length = costs[maze.end]
-    possible_shortcuts = find_possible_shortcuts(maze)
-
-    print(default_length, len(possible_shortcuts))
     
-    shortcuts = {}
+    shortcuts = find_possible_shortcuts_longer(maze, costs, 2)
 
-    for i, shortcut in enumerate(possible_shortcuts):
-        savings = check_shortcut(maze, shortcut, costs)
-        if savings > 0:
-            shortcuts[shortcut] = savings
-    
     # shortcut_lengths = {}
     # for shortcut in shortcuts:
     #     if shortcuts[shortcut] not in shortcut_lengths:
@@ -160,6 +193,15 @@ def part1(puzzle_input: List[str]) -> int:
     #     shortcut_lengths[shortcuts[shortcut]] += 1
 
     # print(shortcut_lengths)
+
+    return sum(1 for shortcut in shortcuts if shortcuts[shortcut] >= 100)
+
+
+def part2(puzzle_input: List[str]) -> int:
+    maze = get_maze(puzzle_input)
+    costs = dijstra(maze)
+
+    shortcuts = find_possible_shortcuts_longer(maze, costs, 20)
 
     return sum(1 for shortcut in shortcuts if shortcuts[shortcut] >= 100)
 
@@ -188,4 +230,4 @@ if __name__ == '__main__':
     ### THE REAL THING
     puzzle_input = helper.read_input_lines()
     print(f'Part 1: {part1(puzzle_input)}')
-    print(f'Part 2: {""}')
+    print(f'Part 2: {part2(puzzle_input)}')
