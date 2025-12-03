@@ -63,8 +63,6 @@ if __name__ == '__main__':
     assert get_largest_joltage('818181911112111') == 92
     assert get_largest_joltage('818181911112111', 12) == 888911112111 
 
-    400_000_000_000
-
     assert part1(test_input) == 357
     assert part2(test_input) == 3121910778619
 
