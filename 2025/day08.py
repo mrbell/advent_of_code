@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 import helper
 from textwrap import dedent
 from math import sqrt
@@ -77,7 +77,7 @@ def parse_points(points: List[str]) -> List[Point]:
     return [Point(line) for line in points]
 
 
-def build_circuits(points: List[Point], n_connections: 1000) -> List[List[Point]]:
+def build_circuits(points: List[Point], n_connections: int = 1000) -> List[List[Point]]:
     
     dmat = distance_matrix(points)
 
@@ -134,6 +134,60 @@ def build_circuits(points: List[Point], n_connections: 1000) -> List[List[Point]
     return circuits
 
 
+def build_circuit(points: List[Point]) -> Tuple[Point, Point]:
+    
+    dmat = distance_matrix(points)
+
+    flat_dmat = []
+    for i, row in enumerate(dmat[:-1]):
+        for j, col in enumerate(row[i+1:]):
+            flat_dmat.append((points[i], points[j + i + 1], col))
+
+    flat_dmat = sorted(flat_dmat, key=lambda x: x[2])
+
+    circuits = [[flat_dmat[0][0], flat_dmat[0][1]]]
+    for p in points:
+        if p not in circuits[0]:
+            circuits.append([p])
+
+    for n in flat_dmat[1:]:
+        p1, p2, d = n
+        
+        circuits_added_to = []
+        already_in_a_circuit = False
+        for i, circuit in enumerate(circuits):
+            if p1 in circuit and p2 in circuit:
+                already_in_a_circuit = True
+                break
+            elif p1 in circuit:
+                circuit.append(p2)
+                circuits_added_to.append(i)
+            elif p2 in circuit:
+                circuit.append(p1)
+                circuits_added_to.append(i)
+
+        if already_in_a_circuit:
+            continue
+
+        if len(circuits) == 2:
+            # We're about to connect the last two circuits into one big circuit
+            return p1, p2
+
+        if len(circuits_added_to) == 0:
+            circuits.append([p1, p2])
+        elif len(circuits_added_to) > 1:
+            new_circuits = [list(set(
+                circuits[circuits_added_to[0]] + circuits[circuits_added_to[1]]
+            ))]
+            for i, c in enumerate(circuits):
+                if i in circuits_added_to:
+                    continue
+                new_circuits.append(c)
+            circuits = new_circuits
+        
+    raise Exception("Shouldn't get here.")
+        
+
 def part1(puzzle_input: str, n_connections: int=1000) -> int:
     points = parse_points(puzzle_input)
     circuits = build_circuits(points, n_connections)
@@ -145,7 +199,9 @@ def part1(puzzle_input: str, n_connections: int=1000) -> int:
 
 
 def part2(puzzle_input: str) -> int:
-    pass
+    points = parse_points(puzzle_input)
+    p1, p2 = build_circuit(points)
+    return p1.x * p2.x
 
 
 if __name__ == '__main__':
@@ -174,9 +230,8 @@ if __name__ == '__main__':
     ''').strip().split('\n')
 
     assert part1(test_input, 10) == 40
+    assert part2(test_input) == 25272
 
-    # 9520 is too low
-    # 62964 is too low
     ### THE REAL THING
     puzzle_input = helper.read_input_lines()
     print(f'Part 1: {part1(puzzle_input)}')
