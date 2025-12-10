@@ -22,26 +22,6 @@ class Point:
         )
 
 
-class Node:
-    def __init__(self, point: Point):
-        self.point = point
-        self.neighbors: List[Point] = []
-
-    def add_neighbor(self, other: 'Node'):
-        self.neighbors.append(other)
-        other.neighbors.append(self)
-    
-    def in_circuit(self, other: 'Node') -> bool:
-        # FIXME: This will create loops and inf recursion
-        if other in self.neighbors:
-            return True
-        else:
-            for n in self.neighbors:
-                if n.in_circuit(other):
-                    return True
-            return False
-
-
 def nearest_neighbors(points: List[Point]) -> Dict[Point, Point]:
 
     nn = defaultdict(lambda: (None, float('inf')))
