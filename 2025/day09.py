@@ -54,30 +54,6 @@ def parse_tiles(points: List[str]) -> Tuple[List[Point], List[Point]]:
             green_tiles.append(Point(
                 f'{t.x + i * dx},{t.y + i * dy}'
             ))
-    
-    # y_min, y_max = min(red_tiles, key=lambda x: x.y).y, max(red_tiles, key=lambda x: x.y).y
-    # x_min, x_max = min(red_tiles, key=lambda x: x.x).x, max(red_tiles, key=lambda x: x.x).x
-
-    # interior_green_tiles = []
-
-    # for y in range(y_min, y_max + 1):
-    #     inside = False
-    #     for x in range(x_min, x_max + 1):
-    #         test_point = Point((x, y))
-    #         on_edge = any(test_point == p for p in red_tiles)
-    #         on_edge = on_edge or any(test_point == p for p in green_tiles)
-
-    #         if on_edge:
-    #             next_test_point = Point((x + 1, y))
-    #             still_on_edge = any(next_test_point == p for p in red_tiles)
-    #             still_on_edge = still_on_edge or any(next_test_point == p for p in green_tiles)
-
-    #             if not still_on_edge:
-    #                 inside = not inside
-    #         elif inside:
-    #             interior_green_tiles.append(test_point)
-        
-    # green_tiles.extend(interior_green_tiles)
         
     return red_tiles, green_tiles
 
@@ -142,6 +118,39 @@ def lines_intersect(l1: Tuple[Point, Point], l2: Tuple[Point, Point]) -> bool:
     )
 
     return 0 <= t <= 1 and 0 <= u <= 1
+
+
+def slope_intercept_from_points(lk: Tuple[Point, Point]) -> Tuple[float, float]:
+
+    mk = (lk[1].y - lk[0].y) / (lk[1].x - lk[0].x)
+    bk = lk[0].y - mk * lk[0].x
+
+    return mk, bk
+
+
+def point_between(p: Point, ls: Tuple[Point, Point]) -> bool:
+
+    px, py = p.x, p.y
+    ls0x, ls0y = ls[0].x, ls[0].y
+    ls1x, ls1y = ls[1].x, ls[1].y
+
+    xs = sorted([ls0x, ls1x])
+    ys = sorted([ls0x, ls1x])
+
+    return xs[0] <= px <= xs[1] and ys[0] <= py <= ys[1]
+
+
+def lines_intersect2(lk: Tuple[Point, Point], ln: Tuple[Point, Point]) -> bool:
+
+    mk, bk = slope_intercept_from_points(lk)
+    mn, bn = slope_intercept_from_points(ln)
+
+    x_int = (bn - bk) / (mk - mn)
+    y_int = mk * (bn - bk) / (mk - mn) + bk
+
+    p = Point((x_int, y_int))
+
+    return point_between(p, lk) and point_between(p, ln)
 
 
 def point_in_polygon_faster(point: Point, polygon: List[Point]) -> bool:
@@ -236,6 +245,15 @@ if __name__ == '__main__':
         2,3
         7,3
     """).strip().split('\n')
+
+    assert lines_intersect2(
+        (Point((7, 3)), Point((7, 1))), 
+        (Point((8, 3)), Point((0, 0)))
+    )
+
+    points = parse_points(test_input)
+    assert point_in_polygon_faster(Point((8, 3)), points)
+
     assert part1(test_input) == 50
     assert part2(test_input) == 24
 
