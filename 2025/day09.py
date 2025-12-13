@@ -2,7 +2,6 @@ from typing import List, Tuple, Union, Set, Dict, Callable
 import helper
 from textwrap import dedent
 from math import sqrt
-from functools import lru_cache
 
 
 class Point:
@@ -54,7 +53,7 @@ def parse_tiles(points: List[str]) -> Tuple[List[Point], List[Point]]:
             green_tiles.append(Point(
                 f'{t.x + i * dx},{t.y + i * dy}'
             ))
-        
+    
     return red_tiles, green_tiles
 
 
@@ -68,59 +67,10 @@ def find_largest_area(points: List[Point]) -> int:
     return max_area
 
 
-def point_in_polygon(point: Point, polygon: Set[Point]) -> bool:
-
-    x_max = max(polygon, key=lambda x: x.x).x + 1
-
-    crossing_count = 0
-    on_edge = False
-    current_position = point
-    edge_above = False
-    edge_below = False
-
-    while current_position.x <= x_max:
-        
-        current_point_on_edge = current_position in polygon
-
-        # Off to on edge
-        if not on_edge and current_point_on_edge:
-            on_edge = True
-            point_above = Point((current_position.x, current_position.y + 1))
-            point_below = Point((current_position.x, current_position.y - 1))
-            edge_above = point_above in polygon
-            edge_below = point_below in polygon
-
-        # On to off edge
-        elif on_edge and not current_point_on_edge:
-            on_edge = False
-            point_above = Point((current_position.x-1, current_position.y + 1))
-            point_below = Point((current_position.x-1, current_position.y - 1))
-            edge_above_2 = point_above in polygon
-            edge_below_2 = point_below in polygon
-            
-            if (edge_above and edge_below) or (edge_above and edge_below_2) or (edge_above_2 and edge_below):
-                crossing_count += 1
-        # On edge
-
-        current_position = Point((current_position.x + 1, current_position.y))
-
-    return (crossing_count % 2) == 1
-
-
-def lines_intersect(l1: Tuple[Point, Point], l2: Tuple[Point, Point]) -> bool:
-
-    t = (l1[0].x - l2[0].x) * (l2[0].y - l2[1].y) - (l1[0].y - l2[0].y) * (l2[0].x - l2[1].x) / (
-        (l1[0].x - l1[1].x) * (l2[0].y - l2[1].y) - (l1[0].y - l1[1].y) * (l2[0].x - l2[1].x)
-    )
-
-    u = (l1[0].x - l1[1].x) * (l1[0].y - l2[0].y) - (l1[0].y - l1[1].y) * (l1[0].x - l2[0].x) / (
-        (l1[0].x - l1[1].x) * (l2[0].y - l2[1].y) - (l1[0].y - l1[1].y) * (l2[0].x - l2[1].x)
-    )
-
-    return 0 <= t <= 1 and 0 <= u <= 1
-
-
 def slope_intercept_from_points(lk: Tuple[Point, Point]) -> Tuple[float, float]:
+
+    if lk[1].x == lk[0].x:
+        return float('inf'), float('inf')
 
     mk = (lk[1].y - lk[0].y) / (lk[1].x - lk[0].x)
     bk = lk[0].y - mk * lk[0].x
@@ -135,37 +85,52 @@ def point_between(p: Point, ls: Tuple[Point, Point]) -> bool:
     ls1x, ls1y = ls[1].x, ls[1].y
 
     xs = sorted([ls0x, ls1x])
-    ys = sorted([ls0x, ls1x])
+    ys = sorted([ls0y, ls1y])
 
     return xs[0] <= px <= xs[1] and ys[0] <= py <= ys[1]
 
 
-def lines_intersect2(lk: Tuple[Point, Point], ln: Tuple[Point, Point]) -> bool:
+def lines_intersect(lk: Tuple[Point, Point], ln: Tuple[Point, Point]) -> bool:
 
     mk, bk = slope_intercept_from_points(lk)
     mn, bn = slope_intercept_from_points(ln)
 
-    x_int = (bn - bk) / (mk - mn)
-    y_int = mk * (bn - bk) / (mk - mn) + bk
+    if mk == float('inf') and mn == float('inf'):
+        return False
+    elif mk == float('inf'):
+        x_int = lk[0].x
+        y_int = mn * x_int + bn
+    elif mn == float('inf'):
+        x_int = ln[0].x
+        y_int = mk * x_int + bk
+    else:
+        x_int = (bn - bk) / (mk - mn)
+        y_int = int(mk * (bn - bk) / (mk - mn) + bk)
 
     p = Point((x_int, y_int))
 
     return point_between(p, lk) and point_between(p, ln)
 
 
-def point_in_polygon_faster(point: Point, polygon: List[Point]) -> bool:
-    # Define ray
-    # Loop over polygon edges and count intersections with the ray
-    # Return true if intersections is odd
-
+def point_in_polygon(point: Point, polygon: List[Point]) -> bool:
     origin = Point((0, 0))
     intersection_count = 0
 
+    # FIXME: Runs into problems when I hit a corner
+    
     for i, p1 in enumerate(polygon):
         p2 = polygon[(i + 1) % len(polygon)]
 
+        # If point is ON the edge, don't count it
+        if ((p2.x == p1.x == point.x) or (p2.y == p1.y == point.y)) and point_between(point, (p1, p2)):
+            return False
+
         if lines_intersect((point, origin), (p1, p2)):
             intersection_count += 1
+        
+    for poly_point in polygon:
+        if poly_point.y == ((point.y / point.x) * poly_point.x):
+            intersection_count -= 1
     
     return (intersection_count % 2) == 1
 
@@ -174,6 +139,8 @@ def area_filled(p1: Point, p2: Point, tiles: Set[Point], inside_function: Callab
 
     x_min, x_max = min(p1.x, p2.x), max(p1.x, p2.x)
     y_min, y_max = min(p1.y, p2.y), max(p1.y, p2.y)
+
+    # FIXME: My assumption that corners and center are sufficient to test is wrong!
 
     corners = [
         Point((x_min, y_min)),
@@ -196,17 +163,41 @@ def area_filled(p1: Point, p2: Point, tiles: Set[Point], inside_function: Callab
     return inside_function(center_point)
 
 
+def area_filled2(p1: Point, p2: Point, red_tiles: List[Point], green_tiles: List[Point], inside_function: Callable) -> bool:
+
+    x_min, x_max = min(p1.x, p2.x), max(p1.x, p2.x)
+    y_min, y_max = min(p1.y, p2.y), max(p1.y, p2.y)
+
+    tiles = set(red_tiles + green_tiles)
+
+    corners = [
+        Point((x_min, y_min)),
+        Point((x_min, y_max)),
+        Point((x_max, y_max)),
+        Point((x_max, y_min)),
+    ]
+
+    for c in corners:
+        if not c in tiles and not inside_function(c):
+            return False
+    
+    if any(point_in_polygon(t, corners) for t in red_tiles if t not in corners):
+        return False
+    
+    return True # inside_function(center_point)
+
+
 def find_largest_filled_area(red_tiles: List[Point], green_tiles: List[Point], inside_function: Callable) -> int:
     max_area = -1
-    tiles = set(red_tiles + green_tiles)
+    # tiles = set(red_tiles + green_tiles)
     for i, p1 in enumerate(red_tiles[:-1]):
         for p2 in red_tiles[i + 1:]:
             area = compute_area(p1, p2)
             if area <= max_area:
                 continue
-            if area_filled(p1, p2, tiles, inside_function):
-                if area > max_area:
-                    max_area = area
+            # if area_filled(p1, p2, tiles, inside_function):
+            if area_filled2(p1, p2, red_tiles, green_tiles, inside_function):
+                max_area = area
     return max_area
 
 
@@ -224,7 +215,7 @@ def part2(puzzle_input: str) -> int:
         key = (point.x, point.y)
         if key in cache:
             return cache[key]
-        result = point_in_polygon_faster(point, red_tiles)
+        result = point_in_polygon(point, red_tiles)
         cache[key] = result
         return result
 
@@ -234,6 +225,7 @@ def part2(puzzle_input: str) -> int:
 
 
 if __name__ == '__main__':
+    
     ### THE TESTS
     test_input = dedent("""
         7,1
@@ -246,25 +238,70 @@ if __name__ == '__main__':
         7,3
     """).strip().split('\n')
 
-    assert lines_intersect2(
+    assert lines_intersect(
         (Point((7, 3)), Point((7, 1))), 
         (Point((8, 3)), Point((0, 0)))
     )
 
+    assert lines_intersect(
+        (Point((8, 3)), Point((0, 0))),
+        (Point((7, 3)), Point((7, 1))), 
+    )
+    
+    assert lines_intersect(
+        (Point((2, 3)), Point((7, 3))), 
+        (Point((5, 4)), Point((0, 0))),
+    )
+    assert lines_intersect(
+        (Point((5, 4)), Point((0, 0))),
+        (Point((2, 3)), Point((7, 3))), 
+    )
+
     points = parse_points(test_input)
-    assert point_in_polygon_faster(Point((8, 3)), points)
+    assert point_in_polygon(Point((8, 3)), points)
+    assert point_in_polygon(Point((5, 4)), points)
+    assert point_in_polygon(Point((9, 3)), points)
+
+    assert not point_in_polygon(Point((10, 6)), [
+        Point((1, 1)),
+        Point((1, 3)),
+        Point((5, 3)),
+        Point((5, 1))
+    ])
 
     assert part1(test_input) == 50
     assert part2(test_input) == 24
+
+
+    test_input = dedent("""
+        1,1
+        5,1
+        5,3
+        7,3
+        7,1
+        10,1
+        10,6
+        1,6             
+    """).strip().split('\n')
+    assert part2(test_input) == 20
+
+    '''
+    ............
+    .x...x.x..x.
+    ............
+    .....x.x....
+    ............
+    ............
+    .x........x.
+    ............
+    '''
 
     print("Tests passed!")
 
     ### THE REAL THING
     puzzle_input = helper.read_input_lines()
+    r, g = parse_tiles(puzzle_input)
     print(f'Part 1: {part1(puzzle_input)}')
     print(f'Part 2: {part2(puzzle_input)}')
 
-
-    # (7, 3) -> (7, 1)
-    # should intersect 
-    # (8, 3) -> (0, 0)
+    # 4730385534 is too high
