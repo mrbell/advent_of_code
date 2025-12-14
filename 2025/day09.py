@@ -67,138 +67,39 @@ def find_largest_area(points: List[Point]) -> int:
     return max_area
 
 
-def slope_intercept_from_points(lk: Tuple[Point, Point]) -> Tuple[float, float]:
-
-    if lk[1].x == lk[0].x:
-        return float('inf'), float('inf')
-
-    mk = (lk[1].y - lk[0].y) / (lk[1].x - lk[0].x)
-    bk = lk[0].y - mk * lk[0].x
-
-    return mk, bk
-
-
-def point_between(p: Point, ls: Tuple[Point, Point]) -> bool:
-
-    px, py = p.x, p.y
-    ls0x, ls0y = ls[0].x, ls[0].y
-    ls1x, ls1y = ls[1].x, ls[1].y
-
-    xs = sorted([ls0x, ls1x])
-    ys = sorted([ls0y, ls1y])
-
-    return xs[0] <= px <= xs[1] and ys[0] <= py <= ys[1]
-
-
-def lines_intersect(lk: Tuple[Point, Point], ln: Tuple[Point, Point]) -> bool:
-
-    mk, bk = slope_intercept_from_points(lk)
-    mn, bn = slope_intercept_from_points(ln)
-
-    if mk == float('inf') and mn == float('inf'):
-        return False
-    elif mk == float('inf'):
-        x_int = lk[0].x
-        y_int = mn * x_int + bn
-    elif mn == float('inf'):
-        x_int = ln[0].x
-        y_int = mk * x_int + bk
-    else:
-        x_int = (bn - bk) / (mk - mn)
-        y_int = int(mk * (bn - bk) / (mk - mn) + bk)
-
-    p = Point((x_int, y_int))
-
-    return point_between(p, lk) and point_between(p, ln)
-
-
-def point_in_polygon(point: Point, polygon: List[Point]) -> bool:
-    origin = Point((0, 0))
+def pip(point: Point, polygon: List[Point]) -> bool:
     intersection_count = 0
-
-    # FIXME: Runs into problems when I hit a corner
-    
     for i, p1 in enumerate(polygon):
         p2 = polygon[(i + 1) % len(polygon)]
 
-        # If point is ON the edge, don't count it
-        if ((p2.x == p1.x == point.x) or (p2.y == p1.y == point.y)) and point_between(point, (p1, p2)):
-            return False
+        # Check only vertical edges
+        if p1.x != p2.x: 
+            continue
 
-        if lines_intersect((point, origin), (p1, p2)):
+        if ((p1.y < point.y < p2.y) or (p2.y < point.y < p1.y)) and p1.x > point.x:
             intersection_count += 1
-        
-    for poly_point in polygon:
-        if poly_point.y == ((point.y / point.x) * poly_point.x):
-            intersection_count -= 1
     
     return (intersection_count % 2) == 1
 
 
-def area_filled(p1: Point, p2: Point, tiles: Set[Point], inside_function: Callable) -> bool:
+def area_filled(p1: Point, p2: Point, grid_points: List[List[Point]], cell_filled: List[List[bool]]) -> bool:
 
-    x_min, x_max = min(p1.x, p2.x), max(p1.x, p2.x)
-    y_min, y_max = min(p1.y, p2.y), max(p1.y, p2.y)
-
-    # FIXME: My assumption that corners and center are sufficient to test is wrong!
-
-    corners = [
-        Point((x_min, y_min)),
-        Point((x_min, y_max)),
-        Point((x_max, y_max)),
-        Point((x_max, y_min)),
-    ]
-
-    center_point = Point(((x_min + x_max) // 2, ((y_min + y_max) // 2)))
-
-    # All 4 corners must be on an edge tile and the central tile must 
-    # be interior to the path
-    for c in corners:
-        if not c in tiles and not inside_function(c):
-            return False
-    
-    if center_point in tiles:
+    if p1.x == p2.x or p1.y == p2.y:
         return True
-    
-    return inside_function(center_point)
-
-
-def area_filled2(p1: Point, p2: Point, red_tiles: List[Point], green_tiles: List[Point], inside_function: Callable) -> bool:
 
     x_min, x_max = min(p1.x, p2.x), max(p1.x, p2.x)
     y_min, y_max = min(p1.y, p2.y), max(p1.y, p2.y)
 
-    tiles = set(red_tiles + green_tiles)
-
-    corners = [
-        Point((x_min, y_min)),
-        Point((x_min, y_max)),
-        Point((x_max, y_max)),
-        Point((x_max, y_min)),
-    ]
-
-    for c in corners:
-        if not c in tiles and not inside_function(c):
-            return False
-    
-    if any(point_in_polygon(t, corners) for t in red_tiles if t not in corners):
-        return False
-    
-    return True # inside_function(center_point)
-
-
-def find_largest_filled_area(red_tiles: List[Point], green_tiles: List[Point], inside_function: Callable) -> int:
-    max_area = -1
-    # tiles = set(red_tiles + green_tiles)
-    for i, p1 in enumerate(red_tiles[:-1]):
-        for p2 in red_tiles[i + 1:]:
-            area = compute_area(p1, p2)
-            if area <= max_area:
+    for i, row in enumerate(grid_points[:-1]):
+        for j, cell in enumerate(row[:-1]):
+            if cell.x < x_min or cell.y < y_min or cell.x >= x_max or cell.y >= y_max:
+                # Outside of the rectangle made by p1 and p2
                 continue
-            # if area_filled(p1, p2, tiles, inside_function):
-            if area_filled2(p1, p2, red_tiles, green_tiles, inside_function):
-                max_area = area
-    return max_area
+
+            if not cell_filled[i][j]:
+                return False
+    
+    return True
 
 
 def part1(puzzle_input: str) -> int:
@@ -208,19 +109,20 @@ def part1(puzzle_input: str) -> int:
 
 
 def part2(puzzle_input: str) -> int:
-    red_tiles, green_tiles = parse_tiles(puzzle_input)
+    red_tiles = parse_points(puzzle_input)
 
-    cache: Dict[Tuple[int, int], bool] = {}
-    def point_in_polygon_cached(point: Point):
-        key = (point.x, point.y)
-        if key in cache:
-            return cache[key]
-        result = point_in_polygon(point, red_tiles)
-        cache[key] = result
-        return result
+    max_area = -1
+    grid_corners = make_grid(red_tiles)
+    cells_filled = infill(red_tiles, grid_corners)
 
+    for i, p1 in enumerate(red_tiles[:-1]):
+        for p2 in red_tiles[i + 1:]:
+            area = compute_area(p1, p2)
+            if area <= max_area:
+                continue
+            if area_filled(p1, p2, grid_corners, cells_filled):
+                max_area = area
 
-    max_area = find_largest_filled_area(red_tiles, green_tiles, inside_function=point_in_polygon_cached)
     return max_area
 
 
@@ -249,7 +151,7 @@ def infill(red_tiles: List[Point], grid: List[List[Point]]) -> List[List[bool]]:
                 (tlc_coords.x + grid[i+1][j+1].x) / 2,
                 (tlc_coords.y + grid[i+1][j+1].y) / 2
             ))
-            is_filled_row.append(point_in_polygon(test_point, red_tiles))
+            is_filled_row.append(pip(test_point, red_tiles))
 
         is_filled.append(is_filled_row)
     
@@ -270,31 +172,13 @@ if __name__ == '__main__':
         7,3
     """).strip().split('\n')
 
-    assert lines_intersect(
-        (Point((7, 3)), Point((7, 1))), 
-        (Point((8, 3)), Point((0, 0)))
-    )
-
-    assert lines_intersect(
-        (Point((8, 3)), Point((0, 0))),
-        (Point((7, 3)), Point((7, 1))), 
-    )
-    
-    assert lines_intersect(
-        (Point((2, 3)), Point((7, 3))), 
-        (Point((5, 4)), Point((0, 0))),
-    )
-    assert lines_intersect(
-        (Point((5, 4)), Point((0, 0))),
-        (Point((2, 3)), Point((7, 3))), 
-    )
 
     points = parse_points(test_input)
-    assert point_in_polygon(Point((8, 3)), points)
-    assert point_in_polygon(Point((5, 4)), points)
-    assert point_in_polygon(Point((9, 3)), points)
+    assert pip(Point((8, 3)), points)
+    assert pip(Point((5, 4)), points)
+    assert pip(Point((9, 3)), points)
 
-    assert not point_in_polygon(Point((10, 6)), [
+    assert not pip(Point((10, 6)), [
         Point((1, 1)),
         Point((1, 3)),
         Point((5, 3)),
@@ -315,7 +199,7 @@ if __name__ == '__main__':
         10,6
         1,6             
     """).strip().split('\n')
-    assert part2(test_input) == 20
+    assert part2(test_input) == 30
 
     '''
     ............
@@ -335,5 +219,3 @@ if __name__ == '__main__':
     r, g = parse_tiles(puzzle_input)
     print(f'Part 1: {part1(puzzle_input)}')
     print(f'Part 2: {part2(puzzle_input)}')
-
-    # 4730385534 is too high
