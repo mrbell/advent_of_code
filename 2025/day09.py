@@ -233,6 +233,38 @@ def part2(puzzle_input: str) -> int:
     return max_area
 
 
+def make_grid(red_tiles: List[Point]) -> List[List[Point]]:
+
+    xs = sorted(set([t.x for t in red_tiles]))
+    ys = sorted(set([t.y for t in red_tiles]))
+
+    grid_points = []
+    for y in ys:
+        row = []
+        for x in xs:
+            row.append(Point((x, y)))
+        grid_points.append(row)
+    
+    return grid_points
+
+
+def infill(red_tiles: List[Point], grid: List[List[Point]]) -> List[List[bool]]:
+    
+    is_filled = []
+    for i, row in enumerate(grid[:-1]):
+        is_filled_row = []
+        for j, tlc_coords in enumerate(row[:-1]):
+            test_point = Point((
+                (tlc_coords.x + grid[i+1][j+1].x) / 2,
+                (tlc_coords.y + grid[i+1][j+1].y) / 2
+            ))
+            is_filled_row.append(point_in_polygon(test_point, red_tiles))
+
+        is_filled.append(is_filled_row)
+    
+    return is_filled
+
+
 if __name__ == '__main__':
     ### THE TESTS
     test_input = dedent("""
